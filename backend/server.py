@@ -633,6 +633,12 @@ async def get_all_orders(admin: User = Depends(get_admin_user)):
 
 @api_router.put("/admin/orders/{order_id}/status")
 async def update_order_status(order_id: str, status: OrderStatus, admin: User = Depends(get_admin_user)):
+    # Get order
+    order = await db.orders.find_one({"order_id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Update status
     result = await db.orders.update_one(
         {"order_id": order_id},
         {"$set": {"status": status}}
@@ -640,6 +646,19 @@ async def update_order_status(order_id: str, status: OrderStatus, admin: User = 
     
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Get user email
+    user = await db.users.find_one({"user_id": order["user_id"]}, {"_id": 0})
+    if user:
+        # Send status update email
+        try:
+            send_order_status_update_email(
+                to_email=user["email"],
+                order_data={"order_id": order["order_id"]},
+                new_status=status
+            )
+        except Exception as e:
+            print(f"Failed to send status update email: {str(e)}")
     
     return {"message": "Order status updated"}
 
