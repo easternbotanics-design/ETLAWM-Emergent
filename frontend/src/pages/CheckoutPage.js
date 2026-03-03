@@ -185,14 +185,14 @@ const CheckoutPage = () => {
   const total = calculateTotal();
 
   return (
-    <div className=\"min-h-screen pt-32 pb-24 px-6 md:px-12\" data-testid=\"checkout-page\">
-      <div className=\"max-w-6xl mx-auto\">
-        <h1 className=\"font-display text-5xl md:text-6xl mb-12\" data-testid=\"checkout-title\">Checkout</h1>
+    <div className="min-h-screen pt-32 pb-24 px-6 md:px-12" data-testid="checkout-page">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="font-display text-5xl md:text-6xl mb-12" data-testid="checkout-title">Checkout</h1>
 
-        <div className=\"grid grid-cols-1 lg:grid-cols-3 gap-12\">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Shipping Form */}
-          <div className=\"lg:col-span-2\">
-            <form onSubmit={handleSubmit} className=\"space-y-6\">
+          <div className="lg:col-span-2">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <h2 className=\"text-2xl font-display mb-6\">Shipping Information</h2>
 
               <div>
