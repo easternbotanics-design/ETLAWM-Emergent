@@ -73,6 +73,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
     setUser(null);
+    localStorage.removeItem('etlawm_user');
   };
 
   return (
