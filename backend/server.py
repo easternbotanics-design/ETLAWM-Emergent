@@ -531,6 +531,21 @@ async def create_order(order_data: OrderCreate, current_user: User = Depends(get
     doc["created_at"] = doc["created_at"].isoformat()
     await db.orders.insert_one(doc)
     
+    # Send order confirmation email
+    try:
+        send_order_confirmation_email(
+            to_email=current_user.email,
+            order_data={
+                "order_id": order.order_id,
+                "items": [item.model_dump() for item in order.items],
+                "total_amount": order.total_amount,
+                "shipping_address": order.shipping_address.model_dump()
+            }
+        )
+    except Exception as e:
+        # Log error but don't fail the order
+        print(f"Failed to send order confirmation email: {str(e)}")
+    
     return {"order": order, "razorpay_order": razorpay_order}
 
 @api_router.post("/orders/{order_id}/verify")
