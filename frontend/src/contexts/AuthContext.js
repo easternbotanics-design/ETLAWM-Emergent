@@ -56,6 +56,7 @@ export const AuthProvider = ({ children }) => {
       { withCredentials: true }
     );
     setUser(response.data.user);
+    localStorage.setItem('etlawm_user', JSON.stringify(response.data.user));
     return response.data;
   };
 
