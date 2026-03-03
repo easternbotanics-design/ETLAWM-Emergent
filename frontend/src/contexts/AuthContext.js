@@ -16,8 +16,20 @@ export const AuthProvider = ({ children }) => {
         withCredentials: true
       });
       setUser(response.data);
+      localStorage.setItem('etlawm_user', JSON.stringify(response.data));
     } catch (error) {
-      setUser(null);
+      // If API fails, check localStorage as fallback
+      const storedUser = localStorage.getItem('etlawm_user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          setUser(null);
+          localStorage.removeItem('etlawm_user');
+        }
+      } else {
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
