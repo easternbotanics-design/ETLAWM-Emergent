@@ -23,14 +23,15 @@ const AuthCallback = () => {
         const sessionIdMatch = hash.match(/session_id=([^&]+)/);
 
         if (!sessionIdMatch) {
+          console.error('No session_id found in URL');
           navigate('/login');
           return;
         }
 
         const sessionId = sessionIdMatch[1];
+        console.log('Processing Google OAuth callback with session_id');
 
         // Exchange session_id for session_token
-        // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
         const response = await axios.post(
           `${API_URL}/api/auth/google/session`,
           {},
@@ -40,12 +41,22 @@ const AuthCallback = () => {
           }
         );
 
+        console.log('Google auth successful, user:', response.data.user);
+
+        // Set user in context
         setUser(response.data.user);
 
-        // Navigate to dashboard with user data
-        navigate('/shop', { replace: true, state: { user: response.data.user } });
+        // Store user in localStorage as backup
+        localStorage.setItem('etlawm_user', JSON.stringify(response.data.user));
+
+        // Wait a moment for state to propagate
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Navigate to shop without state (user is now in context)
+        navigate('/shop', { replace: true });
       } catch (error) {
         console.error('Auth callback error:', error);
+        console.error('Error details:', error.response?.data);
         navigate('/login');
       }
     };
