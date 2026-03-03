@@ -350,6 +350,38 @@ const ProductDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* You May Also Like */}
+      {recommendations.length > 0 && (
+        <div className="max-w-7xl mx-auto px-6 md:px-12 mt-24">
+          <h2 className="font-display text-3xl mb-8">You May Also Like</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {recommendations.map((rec) => {
+              const displayPrice = rec.variants && rec.variants.length > 0
+                ? Math.min(...rec.variants.map(v => v.price))
+                : rec.base_price;
+              const primaryImage = rec.images?.[0] || 'https://images.unsplash.com/photo-1617416430402-8c131ef45227';
+
+              return (
+                <Link key={rec.product_id} to={`/product/${rec.product_id}`} className="group">
+                  <div className="aspect-[3/4] overflow-hidden mb-4 bg-neutral-100">
+                    <img
+                      src={primaryImage}
+                      alt={rec.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                  </div>
+                  <h3 className="font-body text-lg mb-1 group-hover:text-gold transition-colors">
+                    {rec.name}
+                  </h3>
+                  <p className="text-sm text-neutral-600 mb-2">{rec.category}</p>
+                  <p className="font-body text-lg">Rs.{displayPrice.toFixed(2)}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
