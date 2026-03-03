@@ -199,7 +199,7 @@ const CheckoutPage = () => {
                       <span className="text-neutral-600">
                         {product.name} {variant ? `(${variant.name})` : ''} x {item.quantity}
                       </span>
-                      <span>₹{(price * item.quantity).toFixed(2)}</span>
+                      <span>Rs.{(price * item.quantity).toFixed(2)}</span>
                     </div>
                   );
                 })}
