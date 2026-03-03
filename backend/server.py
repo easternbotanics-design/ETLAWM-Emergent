@@ -584,6 +584,19 @@ async def verify_payment(order_id: str, payment_id: str, razorpay_signature: str
         {"$set": {"items": [], "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
+    # Send payment success email
+    try:
+        send_payment_success_email(
+            to_email=current_user.email,
+            order_data={
+                "order_id": order["order_id"],
+                "total_amount": order["total_amount"]
+            },
+            payment_id=payment_id
+        )
+    except Exception as e:
+        print(f"Failed to send payment success email: {str(e)}")
+    
     return {"message": "Payment verified", "order_id": order_id}
 
 @api_router.get("/orders", response_model=List[Order])
