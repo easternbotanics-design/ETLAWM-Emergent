@@ -7,6 +7,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthCallback from './components/AuthCallback';
+import CategoriesPage from './pages/CategoriesPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ShopPage from './pages/ShopPage';
@@ -33,6 +34,7 @@ function AppRouter() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/shop" element={<ShopPage />} />
+        <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/product/:productId" element={<ProductDetailPage />} />
         
         <Route
