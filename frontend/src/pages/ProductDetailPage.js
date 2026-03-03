@@ -24,6 +24,7 @@ const ProductDetailPage = () => {
   const { addToCart } = useCart();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,11 @@ const ProductDetailPage = () => {
       if (response.data.variants && response.data.variants.length > 0) {
         setSelectedVariant(response.data.variants[0].variant_id);
       }
+      
+      // Fetch recommendations (same category products)
+      const recsResponse = await axios.get(`${API_URL}/api/products?category=${response.data.category}`);
+      const filtered = recsResponse.data.filter(p => p.product_id !== productId).slice(0, 4);
+      setRecommendations(filtered);
     } catch (error) {
       console.error('Failed to fetch product:', error);
       toast.error('Product not found');
