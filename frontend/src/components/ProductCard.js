@@ -28,8 +28,12 @@ const ProductCard = ({ product, onAddToWishlist }) => {
       {/* Wishlist Button */}
       {onAddToWishlist && (
         <button
-          onClick={() => onAddToWishlist(product.product_id)}
-          className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-3 hover:bg-black hover:text-white transition-colors duration-300"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onAddToWishlist(product.product_id);
+          }}
+          className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm p-3 hover:bg-black hover:text-white transition-colors duration-300 z-10"
           data-testid="wishlist-button"
         >
           <Heart className="w-5 h-5" />
