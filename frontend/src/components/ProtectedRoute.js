@@ -6,8 +6,13 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // If user data was passed from AuthCallback, render immediately
-  if (location.state?.user) {
+  // Don't redirect if we're processing OAuth callback
+  if (location.hash?.includes('session_id=')) {
+    return children;
+  }
+
+  // If user data was passed from AuthCallback or is in context, render immediately
+  if (location.state?.user || user) {
     return children;
   }
 
