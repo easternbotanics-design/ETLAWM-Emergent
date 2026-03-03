@@ -13,6 +13,11 @@ from datetime import datetime, timezone, timedelta
 import bcrypt
 import razorpay
 from enum import Enum
+from email_service import (
+    send_order_confirmation_email, 
+    send_order_status_update_email, 
+    send_payment_success_email
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
