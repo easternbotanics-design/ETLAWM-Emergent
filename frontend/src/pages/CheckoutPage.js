@@ -207,7 +207,7 @@ const CheckoutPage = () => {
               <div className="border-t border-neutral-200 pt-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Subtotal</span>
-                  <span data-testid="checkout-subtotal">₹{total.toFixed(2)}</span>
+                  <span data-testid="checkout-subtotal">Rs.{total.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Shipping</span>
@@ -215,7 +215,7 @@ const CheckoutPage = () => {
                 </div>
                 <div className="border-t border-neutral-200 pt-4 flex justify-between text-xl font-medium">
                   <span>Total</span>
-                  <span data-testid="checkout-total">₹{total.toFixed(2)}</span>
+                  <span data-testid="checkout-total">Rs.{total.toFixed(2)}</span>
                 </div>
               </div>
             </div>
