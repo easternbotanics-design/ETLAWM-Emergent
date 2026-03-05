@@ -38,6 +38,7 @@ function AppRouter() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/product/:productId" element={<ProductDetailPage />} />
