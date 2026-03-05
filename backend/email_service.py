@@ -237,7 +237,7 @@ def send_order_status_update_email(to_email: str, order_data: Dict[str, Any], ne
         </html>
         """
         
-        resend_client.emails.send({
+        resend.Emails.send({
             "from": NOTIFICATION_EMAIL,
             "to": to_email,
             "subject": f"{status_info['title']} - Order {order_data['order_id']} | {COMPANY_NAME}",
