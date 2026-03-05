@@ -277,26 +277,36 @@ async def login(login_data: UserLogin, response: Response):
 @api_router.post("/auth/google/session")
 async def google_auth_session(request: Request, response: Response):
     session_id = request.headers.get("X-Session-ID")
+    print(f"=== GOOGLE AUTH SESSION STARTED ===")
+    print(f"Received session_id: {session_id}")
+    
     if not session_id:
+        print("❌ No session ID provided")
         raise HTTPException(status_code=400, detail="Session ID required")
     
     # Call Emergent Auth API
     import requests
+    print(f"🔄 Calling Emergent Auth API...")
     auth_response = requests.get(
         "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
         headers={"X-Session-ID": session_id}
     )
     
+    print(f"Auth API Status: {auth_response.status_code}")
+    
     if auth_response.status_code != 200:
+        print(f"❌ Invalid session from Emergent Auth")
         raise HTTPException(status_code=401, detail="Invalid session")
     
     data = auth_response.json()
+    print(f"✅ Got user data from Emergent: {data.get('email')}")
     
     # Check if user exists
     user = await db.users.find_one({"email": data["email"]}, {"_id": 0})
     
     if not user:
         # Create new user
+        print(f"📝 Creating new user for {data['email']}")
         user_id = f"user_{uuid.uuid4().hex[:12]}"
         user = {
             "user_id": user_id,
@@ -307,11 +317,14 @@ async def google_auth_session(request: Request, response: Response):
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.users.insert_one(user)
+    else:
+        print(f"✅ Found existing user: {user['user_id']}")
     
     # Store session
     session_token = data["session_token"]
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
     
+    print(f"💾 Storing session token...")
     await db.user_sessions.insert_one({
         "user_id": user["user_id"],
         "session_token": session_token,
@@ -320,6 +333,7 @@ async def google_auth_session(request: Request, response: Response):
     })
     
     # Set cookie
+    print(f"🍪 Setting cookie with session token")
     response.set_cookie(
         key="session_token",
         value=session_token,
@@ -332,6 +346,10 @@ async def google_auth_session(request: Request, response: Response):
     
     user.pop("password", None)
     user["created_at"] = datetime.fromisoformat(user["created_at"])
+    
+    print(f"✅ GOOGLE AUTH SESSION COMPLETED")
+    print(f"Returning user: {user['email']}, role: {user.get('role')}")
+    
     return {"user": User(**user), "session_token": session_token}
 
 @api_router.get("/auth/me", response_model=User)
