@@ -1,9 +1,9 @@
 import os
-from resend import Resend
+import resend
 from typing import Dict, Any
 
-# Initialize Resend client
-resend_client = Resend(os.environ.get('RESEND_API_KEY', ''))
+# Initialize Resend
+resend.api_key = os.environ.get('RESEND_API_KEY', '')
 
 NOTIFICATION_EMAIL = os.environ.get('NOTIFICATION_EMAIL', 'onboarding@resend.dev')
 COMPANY_NAME = os.environ.get('COMPANY_NAME', 'ETLAWM')
