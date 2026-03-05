@@ -25,11 +25,6 @@ import AdminInventory from './pages/admin/AdminInventory';
 function AppRouter() {
   const location = useLocation();
   
-  // Synchronous check for auth callback
-  if (location.hash?.includes('session_id=')) {
-    return <AuthCallback />;
-  }
-
   const hideNavFooter = location.pathname === '/login' || location.pathname === '/auth/callback';
 
   return (
