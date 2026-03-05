@@ -133,7 +133,7 @@ def send_order_confirmation_email(to_email: str, order_data: Dict[str, Any]) -> 
         </html>
         """
         
-        resend_client.emails.send({
+        resend.Emails.send({
             "from": NOTIFICATION_EMAIL,
             "to": to_email,
             "subject": f"Order Confirmed - {order_data['order_id']} | {COMPANY_NAME}",
