@@ -324,7 +324,7 @@ def send_payment_success_email(to_email: str, order_data: Dict[str, Any], paymen
         </html>
         """
         
-        resend_client.emails.send({
+        resend.Emails.send({
             "from": NOTIFICATION_EMAIL,
             "to": to_email,
             "subject": f"Payment Received - Rs.{order_data['total_amount']:.2f} | {COMPANY_NAME}",
