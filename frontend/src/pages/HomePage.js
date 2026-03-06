@@ -21,7 +21,11 @@ const HomePage = () => {
   const fetchFeaturedProducts = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/products?featured=true`);
-      setFeaturedProducts(response.data.slice(0, 6));
+      if (Array.isArray(response.data)) {
+        setFeaturedProducts(response.data.slice(0, 6));
+      } else {
+        console.error('Invalid response format:', response.data);
+      }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     } finally {
