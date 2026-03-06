@@ -32,6 +32,7 @@ const ProductDetailPage = () => {
   const [rating, setRating] = useState(5);
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchProduct();
     fetchReviews();

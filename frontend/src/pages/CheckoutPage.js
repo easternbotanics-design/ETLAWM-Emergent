@@ -35,6 +35,7 @@ const CheckoutPage = () => {
     phone: ''
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!cart.items || cart.items.length === 0) {
       navigate('/cart');

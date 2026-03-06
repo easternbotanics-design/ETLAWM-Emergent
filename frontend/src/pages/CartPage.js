@@ -14,6 +14,7 @@ const CartPage = () => {
   const [products, setProducts] = useState({});
   const [loading, setLoading] = useState(true);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadCartDetails();
   }, [cart]);

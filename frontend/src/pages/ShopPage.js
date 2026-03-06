@@ -29,6 +29,7 @@ const ShopPage = () => {
     }
   }, [searchParams]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchCategories();
     fetchProducts();

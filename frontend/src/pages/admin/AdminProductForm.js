@@ -26,6 +26,7 @@ const AdminProductForm = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isEdit) {
       fetchProduct();
