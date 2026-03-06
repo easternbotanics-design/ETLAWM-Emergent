@@ -77,8 +77,8 @@ pyasn1
 pyasn1_modules
 pycodestyle
 pycparser
-pydantic
-pydantic_core
+pydantic==2.12.5
+pydantic_core==2.41.5
 pyflakes
 Pygments
 PyJWT
