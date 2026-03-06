@@ -279,33 +279,32 @@ async def login(login_data: UserLogin, response: Response):
     user["created_at"] = datetime.fromisoformat(user["created_at"])
     return {"user": User(**user), "session_token": session_token}
 
+class GoogleTokenData(BaseModel):
+    access_token: str
+
 @api_router.post("/auth/google/session")
-async def google_auth_session(request: Request, response: Response):
-    session_id = request.headers.get("X-Session-ID")
+async def google_auth_session(token_data: GoogleTokenData, response: Response):
     print(f"=== GOOGLE AUTH SESSION STARTED ===")
-    print(f"Received session_id: {session_id}")
     
-    if not session_id:
-        print("❌ No session ID provided")
-        raise HTTPException(status_code=400, detail="Session ID required")
+    if not token_data.access_token:
+        print("❌ No access token provided")
+        raise HTTPException(status_code=400, detail="Access token required")
     
-    # Call Emergent Auth API using async httpx
+    # Call Google Auth API using async httpx
     import httpx
-    print(f"🔄 Calling Emergent Auth API...")
+    print(f"🔄 Calling Google UserInfo API...")
     async with httpx.AsyncClient() as http_client:
         auth_response = await http_client.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": session_id}
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {token_data.access_token}"}
         )
     
-    print(f"Auth API Status: {auth_response.status_code}")
-    
     if auth_response.status_code != 200:
-        print(f"❌ Invalid session from Emergent Auth")
-        raise HTTPException(status_code=401, detail="Invalid session")
+        print(f"❌ Invalid token from Google: {auth_response.text}")
+        raise HTTPException(status_code=401, detail="Invalid Google token")
     
     data = auth_response.json()
-    print(f"✅ Got user data from Emergent: {data.get('email')}")
+    print(f"✅ Got user data from Google: {data.get('email')}")
     
     # Check if user exists
     user = await db.users.find_one({"email": data["email"]}, {"_id": 0})
@@ -317,17 +316,20 @@ async def google_auth_session(request: Request, response: Response):
         user = {
             "user_id": user_id,
             "email": data["email"],
-            "name": data["name"],
+            "name": data.get("name", "Google User"),
             "picture": data.get("picture"),
             "role": UserRole.USER,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
+        # A dummy password hash so DB structure is satisfied if needed
+        import bcrypt
+        user["password"] = bcrypt.hashpw(os.urandom(32), bcrypt.gensalt()).decode()
         await db.users.insert_one(user)
     else:
         print(f"✅ Found existing user: {user['user_id']}")
     
     # Store session
-    session_token = data["session_token"]
+    session_token = f"session_{uuid.uuid4().hex}"
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
     
     print(f"💾 Storing session token...")
@@ -351,11 +353,15 @@ async def google_auth_session(request: Request, response: Response):
     )
     
     user.pop("password", None)
-    user["created_at"] = datetime.fromisoformat(user["created_at"])
     
+    # Ensure created_at is datetime object if the BaseModel validation is expected later
+    if isinstance(user.get("created_at"), str):
+        try:
+            user["created_at"] = datetime.fromisoformat(user["created_at"])
+        except ValueError:
+            user["created_at"] = datetime.now(timezone.utc)
+            
     print(f"✅ GOOGLE AUTH SESSION COMPLETED")
-    print(f"Returning user: {user['email']}, role: {user.get('role')}")
-    
     return {"user": User(**user), "session_token": session_token}
 
 @api_router.get("/auth/me", response_model=User)

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -39,11 +41,28 @@ const LoginPage = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + '/auth/callback';
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-  };
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setLoading(true);
+      try {
+        const res = await axios.post(
+          `${process.env.REACT_APP_BACKEND_URL}/api/auth/google/session`,
+          { access_token: tokenResponse.access_token },
+          { withCredentials: true }
+        );
+        // Login the user in the context
+        toast.success('Google login successful');
+        // Actually we need to set the user state since the context doesn't know. Let's do a hard reload or manually set state.
+        // The easiest way is to reload or navigate. We'll navigate and the AuthProvider checkAuth will run if we're clever, but checkAuth runs on mount.
+        // Let's just reload the page which guarantees the new cookie is read
+        window.location.href = from;
+      } catch (err) {
+        toast.error('Google login failed. Please try again.');
+        setLoading(false);
+      }
+    },
+    onError: () => toast.error('Google login failed'),
+  });
 
   return (
     <div className="min-h-screen flex" data-testid="login-page">
