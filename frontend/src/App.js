@@ -22,6 +22,7 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminProductForm from './pages/admin/AdminProductForm';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminInventory from './pages/admin/AdminInventory';
+import { Analytics } from '@vercel/analytics/react';
 
 function AppRouter() {
   const location = useLocation();
@@ -150,6 +151,7 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <AppRouter />
+          <Analytics />
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
