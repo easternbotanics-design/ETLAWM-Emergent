@@ -23,6 +23,7 @@ import AdminProductForm from './pages/admin/AdminProductForm';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminInventory from './pages/admin/AdminInventory';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 function AppRouter() {
   const location = useLocation();
@@ -152,6 +153,7 @@ function App() {
         <CartProvider>
           <AppRouter />
           <Analytics />
+          <SpeedInsights />
         </CartProvider>
       </AuthProvider>
     </BrowserRouter>
