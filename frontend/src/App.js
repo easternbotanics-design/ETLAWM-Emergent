@@ -6,6 +6,7 @@ import { CartProvider } from './contexts/CartContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import AuthCallback from './components/AuthCallback';
 import CategoriesPage from './pages/CategoriesPage';
 import HomePage from './pages/HomePage';
@@ -91,49 +92,49 @@ function AppRouter() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminDashboard />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/products"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminProducts />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/products/new"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminProductForm />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/products/:productId"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminProductForm />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/orders"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminOrders />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/inventory"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <AdminInventory />
-            </ProtectedRoute>
+            </AdminRoute>
           }
         />
       </Routes>

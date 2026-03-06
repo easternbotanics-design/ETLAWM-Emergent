@@ -145,6 +145,11 @@ class OrderCreate(BaseModel):
     total_amount: float
     shipping_address: ShippingAddress
 
+# ==================== PAYMENT VERIFICATION MODEL ====================
+class PaymentVerification(BaseModel):
+    payment_id: str
+    razorpay_signature: str
+
 # ==================== REVIEW MODELS ====================
 class Review(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -284,13 +289,14 @@ async def google_auth_session(request: Request, response: Response):
         print("❌ No session ID provided")
         raise HTTPException(status_code=400, detail="Session ID required")
     
-    # Call Emergent Auth API
-    import requests
+    # Call Emergent Auth API using async httpx
+    import httpx
     print(f"🔄 Calling Emergent Auth API...")
-    auth_response = requests.get(
-        "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-        headers={"X-Session-ID": session_id}
-    )
+    async with httpx.AsyncClient() as http_client:
+        auth_response = await http_client.get(
+            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+            headers={"X-Session-ID": session_id}
+        )
     
     print(f"Auth API Status: {auth_response.status_code}")
     
@@ -526,6 +532,22 @@ async def clear_cart(current_user: User = Depends(get_current_user)):
 # ==================== ORDER ROUTES ====================
 @api_router.post("/orders/create")
 async def create_order(order_data: OrderCreate, current_user: User = Depends(get_current_user)):
+    # Validate stock before creating order
+    for item in order_data.items:
+        if item.variant_id:
+            product = await db.products.find_one(
+                {"product_id": item.product_id, "variants.variant_id": item.variant_id},
+                {"_id": 0, "variants.$": 1, "name": 1}
+            )
+            if not product or not product.get("variants"):
+                raise HTTPException(status_code=400, detail=f"Product variant not found: {item.product_id}/{item.variant_id}")
+            variant = product["variants"][0]
+            if variant["stock"] < item.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for {product.get('name', item.product_id)} ({variant.get('name', item.variant_id)}): only {variant['stock']} available"
+                )
+
     # Create Razorpay order
     try:
         razorpay_order = razorpay_client.order.create({
@@ -567,7 +589,7 @@ async def create_order(order_data: OrderCreate, current_user: User = Depends(get
     return {"order": order, "razorpay_order": razorpay_order}
 
 @api_router.post("/orders/{order_id}/verify")
-async def verify_payment(order_id: str, payment_id: str, razorpay_signature: str, current_user: User = Depends(get_current_user)):
+async def verify_payment(order_id: str, data: PaymentVerification, current_user: User = Depends(get_current_user)):
     order = await db.orders.find_one({"order_id": order_id, "user_id": current_user.user_id}, {"_id": 0})
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -576,8 +598,8 @@ async def verify_payment(order_id: str, payment_id: str, razorpay_signature: str
     try:
         razorpay_client.utility.verify_payment_signature({
             "razorpay_order_id": order["razorpay_order_id"],
-            "razorpay_payment_id": payment_id,
-            "razorpay_signature": razorpay_signature
+            "razorpay_payment_id": data.payment_id,
+            "razorpay_signature": data.razorpay_signature
         })
     except Exception as e:
         raise HTTPException(status_code=400, detail="Payment verification failed")
@@ -585,7 +607,7 @@ async def verify_payment(order_id: str, payment_id: str, razorpay_signature: str
     # Update order
     await db.orders.update_one(
         {"order_id": order_id},
-        {"$set": {"payment_id": payment_id, "status": OrderStatus.CONFIRMED}}
+        {"$set": {"payment_id": data.payment_id, "status": OrderStatus.CONFIRMED}}
     )
     
     # Update inventory
@@ -610,7 +632,7 @@ async def verify_payment(order_id: str, payment_id: str, razorpay_signature: str
                 "order_id": order["order_id"],
                 "total_amount": order["total_amount"]
             },
-            payment_id=payment_id
+            payment_id=data.payment_id
         )
     except Exception as e:
         print(f"Failed to send payment success email: {str(e)}")
