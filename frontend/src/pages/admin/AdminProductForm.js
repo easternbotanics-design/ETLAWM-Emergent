@@ -1,11 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Upload, Image, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -19,19 +26,33 @@ const AdminProductForm = () => {
     name: '',
     description: '',
     category: '',
+    customCategory: '',
     base_price: '',
     featured: false,
-    images: [''],
+    images: [],
     variants: []
   });
   const [loading, setLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [errors, setErrors] = useState({});
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    fetchCategories();
     if (isEdit) {
       fetchProduct();
     }
   }, [productId]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/categories`);
+      setCategories(response.data.categories || []);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    }
+  };
 
   const fetchProduct = async () => {
     try {
@@ -41,9 +62,10 @@ const AdminProductForm = () => {
         name: product.name,
         description: product.description,
         category: product.category,
+        customCategory: '',
         base_price: product.base_price,
         featured: product.featured,
-        images: product.images.length > 0 ? product.images : [''],
+        images: product.images || [],
         variants: product.variants || []
       });
     } catch (error) {
@@ -52,15 +74,64 @@ const AdminProductForm = () => {
     }
   };
 
+  const validateForm = useCallback(() => {
+    const newErrors = {};
+    
+    if (!formData.name.trim()) newErrors.name = 'Product name is required';
+    if (!formData.description.trim()) newErrors.description = 'Description is required';
+    
+    const category = formData.category === '__custom__' ? formData.customCategory : formData.category;
+    if (!category || !category.trim()) newErrors.category = 'Category is required';
+    
+    if (!formData.base_price || parseFloat(formData.base_price) < 0) {
+      newErrors.base_price = 'Valid base price is required';
+    }
+
+    // Validate variants
+    formData.variants.forEach((variant, index) => {
+      if (!variant.name || !variant.name.trim()) {
+        newErrors[`variant_${index}_name`] = 'Variant name is required';
+      }
+      if (variant.price === '' || variant.price === undefined || parseFloat(variant.price) < 0) {
+        newErrors[`variant_${index}_price`] = 'Price must be 0 or positive';
+      }
+      if (variant.stock === '' || variant.stock === undefined || parseInt(variant.stock) < 0) {
+        newErrors[`variant_${index}_stock`] = 'Stock must be 0 or positive';
+      }
+      if (!variant.sku || !variant.sku.trim()) {
+        newErrors[`variant_${index}_sku`] = 'SKU is required';
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      toast.error('Please fix the validation errors');
+      return;
+    }
+    
     setLoading(true);
 
     try {
+      const category = formData.category === '__custom__' ? formData.customCategory : formData.category;
+      
       const data = {
-        ...formData,
+        name: formData.name,
+        description: formData.description,
+        category: category.trim(),
         base_price: parseFloat(formData.base_price),
-        images: formData.images.filter(img => img.trim() !== '')
+        featured: formData.featured,
+        images: formData.images.filter(img => img.trim() !== ''),
+        variants: formData.variants.map(v => ({
+          ...v,
+          price: parseFloat(v.price) || 0,
+          stock: parseInt(v.stock) || 0
+        }))
       };
 
       if (isEdit) {
@@ -76,19 +147,59 @@ const AdminProductForm = () => {
       }
       navigate('/admin/products');
     } catch (error) {
-      toast.error(isEdit ? 'Failed to update product' : 'Failed to create product');
+      const errorMsg = error.response?.data?.detail || (isEdit ? 'Failed to update product' : 'Failed to create product');
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const addImage = () => {
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploadingImages(true);
+    const newImages = [...formData.images];
+
+    for (const file of files) {
+      // Validate file type
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+        toast.error(`${file.name}: Invalid file type. Only JPEG, PNG, WebP, GIF allowed.`);
+        continue;
+      }
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: File exceeds 10MB limit`);
+        continue;
+      }
+
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const response = await axios.post(`${API_URL}/api/upload/image`, fd, {
+          withCredentials: true,
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        newImages.push(response.data.url);
+        toast.success(`${file.name} uploaded`);
+      } catch (error) {
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+
+    setFormData({ ...formData, images: newImages });
+    setUploadingImages(false);
+    // reset file input
+    e.target.value = '';
+  };
+
+  const addImageUrl = () => {
     setFormData({ ...formData, images: [...formData.images, ''] });
   };
 
   const removeImage = (index) => {
     const newImages = formData.images.filter((_, i) => i !== index);
-    setFormData({ ...formData, images: newImages.length > 0 ? newImages : [''] });
+    setFormData({ ...formData, images: newImages });
   };
 
   const updateImage = (index, value) => {
@@ -109,12 +220,26 @@ const AdminProductForm = () => {
       ...formData,
       variants: formData.variants.filter((_, i) => i !== index)
     });
+    // Clear variant errors
+    const newErrors = { ...errors };
+    Object.keys(newErrors).forEach(key => {
+      if (key.startsWith(`variant_${index}_`)) delete newErrors[key];
+    });
+    setErrors(newErrors);
   };
 
   const updateVariant = (index, field, value) => {
     const newVariants = [...formData.variants];
     newVariants[index] = { ...newVariants[index], [field]: value };
     setFormData({ ...formData, variants: newVariants });
+    
+    // Clear specific error on change
+    const errorKey = `variant_${index}_${field}`;
+    if (errors[errorKey]) {
+      const newErrors = { ...errors };
+      delete newErrors[errorKey];
+      setErrors(newErrors);
+    }
   };
 
   return (
@@ -137,10 +262,13 @@ const AdminProductForm = () => {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className="border border-neutral-300 rounded-none p-4"
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (errors.name) setErrors({ ...errors, name: null });
+                  }}
+                  className={`border rounded-none p-4 ${errors.name ? 'border-red-500' : 'border-neutral-300'}`}
                 />
+                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
               </div>
 
               <div>
@@ -148,35 +276,64 @@ const AdminProductForm = () => {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (errors.description) setErrors({ ...errors, description: null });
+                  }}
                   rows={4}
-                  className="border border-neutral-300 rounded-none p-4"
+                  className={`border rounded-none p-4 ${errors.description ? 'border-red-500' : 'border-neutral-300'}`}
                 />
+                {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="category" className="text-xs uppercase tracking-widest mb-2 block">Category *</Label>
-                  <Input
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    required
-                    className="border border-neutral-300 rounded-none p-4"
-                  />
+                  <Select 
+                    value={formData.category || undefined} 
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, category: value, customCategory: '' });
+                      if (errors.category) setErrors({ ...errors, category: null });
+                    }}
+                  >
+                    <SelectTrigger className={`border rounded-none p-4 h-auto ${errors.category ? 'border-red-500' : 'border-neutral-300'}`}>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">+ Add New Category</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.category === '__custom__' && (
+                    <Input
+                      placeholder="Enter new category name"
+                      value={formData.customCategory}
+                      onChange={(e) => {
+                        setFormData({ ...formData, customCategory: e.target.value });
+                        if (errors.category) setErrors({ ...errors, category: null });
+                      }}
+                      className="border border-neutral-300 rounded-none p-4 mt-2"
+                    />
+                  )}
+                  {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="base_price" className="text-xs uppercase tracking-widest mb-2 block">Base Price *</Label>
+                  <Label htmlFor="base_price" className="text-xs uppercase tracking-widest mb-2 block">Base Price (₹) *</Label>
                   <Input
                     id="base_price"
                     type="number"
                     step="0.01"
+                    min="0"
                     value={formData.base_price}
-                    onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
-                    required
-                    className="border border-neutral-300 rounded-none p-4"
+                    onChange={(e) => {
+                      setFormData({ ...formData, base_price: e.target.value });
+                      if (errors.base_price) setErrors({ ...errors, base_price: null });
+                    }}
+                    className={`border rounded-none p-4 ${errors.base_price ? 'border-red-500' : 'border-neutral-300'}`}
                   />
+                  {errors.base_price && <p className="text-red-500 text-xs mt-1">{errors.base_price}</p>}
                 </div>
               </div>
 
@@ -197,33 +354,93 @@ const AdminProductForm = () => {
           <div className="border border-neutral-200 p-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-display">Product Images</h2>
-              <Button type="button" onClick={addImage} className="bg-transparent border border-black text-black hover:bg-black hover:text-white rounded-none px-4 py-2 text-xs">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Image
-              </Button>
+              <div className="flex gap-2">
+                <label className="cursor-pointer bg-black text-white hover:bg-neutral-800 transition-colors px-4 py-2 text-xs flex items-center gap-2 uppercase tracking-widest">
+                  <Upload className="w-4 h-4" />
+                  {uploadingImages ? 'Uploading...' : 'Upload Images'}
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    disabled={uploadingImages}
+                  />
+                </label>
+                <Button type="button" onClick={addImageUrl} className="bg-transparent border border-black text-black hover:bg-black hover:text-white rounded-none px-4 py-2 text-xs">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add URL
+                </Button>
+              </div>
             </div>
-            <div className="space-y-4">
+
+            {uploadingImages && (
+              <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 mb-4">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                <span className="text-sm text-blue-700">Uploading images to cloud...</span>
+              </div>
+            )}
+
+            {/* Image Preview Grid */}
+            {formData.images.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                {formData.images.map((image, index) => (
+                  image && !image.startsWith('') ? (
+                    <div key={index} className="relative group aspect-square border border-neutral-200">
+                      <img
+                        src={image}
+                        alt={`Product ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div className="w-full h-full items-center justify-center bg-neutral-100 hidden">
+                        <Image className="w-8 h-8 text-neutral-400" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : null
+                ))}
+              </div>
+            )}
+
+            {/* URL inputs for manually added URLs */}
+            <div className="space-y-3">
               {formData.images.map((image, index) => (
-                <div key={index} className="flex gap-4">
+                <div key={index} className="flex gap-3">
                   <Input
                     type="url"
                     placeholder="https://example.com/image.jpg"
                     value={image}
                     onChange={(e) => updateImage(index, e.target.value)}
-                    className="flex-1 border border-neutral-300 rounded-none p-4"
+                    className="flex-1 border border-neutral-300 rounded-none p-3 text-sm"
                   />
-                  {formData.images.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="p-4 border border-neutral-300 hover:bg-red-50 hover:border-red-300 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="p-3 border border-neutral-300 hover:bg-red-50 hover:border-red-300 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>
+
+            {formData.images.length === 0 && (
+              <div className="border-2 border-dashed border-neutral-300 p-8 text-center">
+                <Image className="w-12 h-12 mx-auto mb-3 text-neutral-300" />
+                <p className="text-sm text-neutral-500 mb-2">No images added yet</p>
+                <p className="text-xs text-neutral-400">Upload images or paste URLs to add product photos</p>
+              </div>
+            )}
           </div>
 
           {/* Variants */}
@@ -249,33 +466,55 @@ const AdminProductForm = () => {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      placeholder="Name (e.g., 50ml)"
-                      value={variant.name}
-                      onChange={(e) => updateVariant(index, 'name', e.target.value)}
-                      className="border border-neutral-300 rounded-none p-4"
-                    />
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Price"
-                      value={variant.price}
-                      onChange={(e) => updateVariant(index, 'price', e.target.value)}
-                      className="border border-neutral-300 rounded-none p-4"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Stock"
-                      value={variant.stock}
-                      onChange={(e) => updateVariant(index, 'stock', e.target.value)}
-                      className="border border-neutral-300 rounded-none p-4"
-                    />
-                    <Input
-                      placeholder="SKU"
-                      value={variant.sku}
-                      onChange={(e) => updateVariant(index, 'sku', e.target.value)}
-                      className="border border-neutral-300 rounded-none p-4"
-                    />
+                    <div>
+                      <Input
+                        placeholder="Name (e.g., 50ml)"
+                        value={variant.name}
+                        onChange={(e) => updateVariant(index, 'name', e.target.value)}
+                        className={`border rounded-none p-4 ${errors[`variant_${index}_name`] ? 'border-red-500' : 'border-neutral-300'}`}
+                      />
+                      {errors[`variant_${index}_name`] && (
+                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_name`]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Price (₹)"
+                        value={variant.price}
+                        onChange={(e) => updateVariant(index, 'price', e.target.value)}
+                        className={`border rounded-none p-4 ${errors[`variant_${index}_price`] ? 'border-red-500' : 'border-neutral-300'}`}
+                      />
+                      {errors[`variant_${index}_price`] && (
+                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_price`]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Stock Quantity"
+                        value={variant.stock}
+                        onChange={(e) => updateVariant(index, 'stock', e.target.value)}
+                        className={`border rounded-none p-4 ${errors[`variant_${index}_stock`] ? 'border-red-500' : 'border-neutral-300'}`}
+                      />
+                      {errors[`variant_${index}_stock`] && (
+                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_stock`]}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Input
+                        placeholder="SKU"
+                        value={variant.sku}
+                        onChange={(e) => updateVariant(index, 'sku', e.target.value)}
+                        className={`border rounded-none p-4 ${errors[`variant_${index}_sku`] ? 'border-red-500' : 'border-neutral-300'}`}
+                      />
+                      {errors[`variant_${index}_sku`] && (
+                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_sku`]}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

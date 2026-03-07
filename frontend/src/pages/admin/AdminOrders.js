@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { Search, Package } from 'lucide-react';
+import { Search, Package, Eye, Mail, Phone } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import {
   Select,
@@ -56,7 +57,9 @@ const AdminOrders = () => {
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.order_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+                         order.user_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (order.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (order.customer_email || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -94,7 +97,7 @@ const AdminOrders = () => {
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
             <Input
               type="text"
-              placeholder="Search by order ID or user ID..."
+              placeholder="Search by order ID, customer name, or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-12 border border-neutral-300 rounded-none p-4"
@@ -124,20 +127,53 @@ const AdminOrders = () => {
             </div>
           ) : (
             filteredOrders.map((order) => (
-              <div key={order.order_id} className="border border-neutral-200 p-6">
+              <div key={order.order_id} className="border border-neutral-200 p-6 hover:border-neutral-400 transition-colors">
                 <div className="flex flex-col md:flex-row justify-between mb-4">
                   <div>
                     <p className="text-xs uppercase tracking-widest text-neutral-600 mb-1">
                       Order ID: {order.order_id}
                     </p>
-                    <p className="text-sm text-neutral-600">
-                      User ID: {order.user_id}
-                    </p>
-                    <p className="text-sm text-neutral-600">
+                    {/* Customer Info */}
+                    <div className="flex items-center gap-3 mt-2 mb-1">
+                      {order.customer_picture ? (
+                        <img 
+                          src={order.customer_picture} 
+                          alt={order.customer_name} 
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center">
+                          <span className="text-xs font-medium">{(order.customer_name || 'U')[0].toUpperCase()}</span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium text-sm">{order.customer_name || 'Unknown Customer'}</p>
+                        <div className="flex items-center gap-3 text-xs text-neutral-500">
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {order.customer_email || 'N/A'}
+                          </span>
+                          {order.shipping_address?.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="w-3 h-3" />
+                              {order.shipping_address.phone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-neutral-600 mt-1">
                       {new Date(order.created_at).toLocaleString()}
                     </p>
                   </div>
-                  <div className="mt-4 md:mt-0">
+                  <div className="mt-4 md:mt-0 flex items-start gap-3">
+                    <Link 
+                      to={`/admin/orders/${order.order_id}`}
+                      className="flex items-center gap-2 px-4 py-2 border border-neutral-300 hover:bg-black hover:text-white transition-colors text-sm"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View Details
+                    </Link>
                     <Select
                       value={order.status}
                       onValueChange={(value) => handleStatusUpdate(order.order_id, value)}
@@ -156,43 +192,24 @@ const AdminOrders = () => {
                   </div>
                 </div>
 
-                {/* Order Items */}
-                <div className="border-t border-neutral-200 pt-4 mb-4">
-                  <p className="text-xs uppercase tracking-widest mb-3">Order Items</p>
-                  <div className="space-y-2">
+                {/* Order Items Summary */}
+                <div className="border-t border-neutral-200 pt-4">
+                  <div className="flex flex-wrap gap-4">
                     {order.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span>
-                          {item.product_name} {item.variant_name ? `(${item.variant_name})` : ''} x {item.quantity}
-                        </span>
-                        <span>Rs.{(item.price * item.quantity).toFixed(2)}</span>
-                      </div>
+                      <span key={idx} className="text-sm bg-neutral-50 px-3 py-1">
+                        {item.product_name} {item.variant_name ? `(${item.variant_name})` : ''} × {item.quantity}
+                      </span>
                     ))}
                   </div>
+                  <div className="flex justify-between items-center mt-4">
+                    <div className="flex gap-4 text-sm text-neutral-500">
+                      {order.payment_id && (
+                        <span>Payment: {order.payment_id}</span>
+                      )}
+                    </div>
+                    <span className="text-xl font-medium">₹{order.total_amount.toFixed(2)}</span>
+                  </div>
                 </div>
-
-                {/* Shipping Address */}
-                <div className="border-t border-neutral-200 pt-4 mb-4">
-                  <p className="text-xs uppercase tracking-widest mb-3">Shipping Address</p>
-                  <p className="text-sm text-neutral-700">
-                    {order.shipping_address.name}<br />
-                    {order.shipping_address.address}<br />
-                    {order.shipping_address.city}, {order.shipping_address.state} - {order.shipping_address.pincode}<br />
-                    Phone: {order.shipping_address.phone}
-                  </p>
-                </div>
-
-                {/* Total */}
-                <div className="border-t border-neutral-200 pt-4 flex justify-between items-center">
-                  <span className="text-xs uppercase tracking-widest">Total Amount</span>
-                  <span className="text-2xl font-medium">Rs.{order.total_amount.toFixed(2)}</span>
-                </div>
-
-                {order.payment_id && (
-                  <p className="text-xs text-neutral-600 mt-2">
-                    Payment ID: {order.payment_id}
-                  </p>
-                )}
               </div>
             ))
           )}

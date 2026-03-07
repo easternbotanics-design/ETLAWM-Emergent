@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -6,12 +6,14 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
 import razorpay
+import cloudinary
+import cloudinary.uploader
 from enum import Enum
 from email_service import (
     send_order_confirmation_email, 
@@ -29,6 +31,14 @@ db = client[os.environ['DB_NAME']]
 
 # Razorpay client
 razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', ''), os.environ.get('RAZORPAY_KEY_SECRET', '')))
+
+# Cloudinary configuration
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+    api_key=os.environ.get('CLOUDINARY_API_KEY', ''),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET', ''),
+    secure=True
+)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -77,6 +87,20 @@ class ProductVariant(BaseModel):
     stock: int
     sku: str
 
+    @field_validator('price')
+    @classmethod
+    def validate_price(cls, v):
+        if v < 0:
+            raise ValueError('Price cannot be negative')
+        return v
+
+    @field_validator('stock')
+    @classmethod
+    def validate_stock(cls, v):
+        if v < 0:
+            raise ValueError('Stock cannot be negative')
+        return v
+
 class Product(BaseModel):
     model_config = ConfigDict(extra="ignore")
     product_id: str = Field(default_factory=lambda: f"prod_{uuid.uuid4().hex[:12]}")
@@ -97,6 +121,13 @@ class ProductCreate(BaseModel):
     variants: List[ProductVariant] = []
     images: List[str] = []
     featured: bool = False
+
+    @field_validator('base_price')
+    @classmethod
+    def validate_base_price(cls, v):
+        if v < 0:
+            raise ValueError('Base price cannot be negative')
+        return v
 
 # ==================== CART MODELS ====================
 class CartItem(BaseModel):
@@ -442,6 +473,48 @@ async def get_categories():
     categories = await db.products.distinct("category")
     return {"categories": categories}
 
+# ==================== IMAGE UPLOAD ROUTES ====================
+@api_router.post("/upload/image")
+async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_admin_user)):
+    """Upload an image to Cloudinary and return the URL"""
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"File type {file.content_type} not allowed. Allowed: {', '.join(allowed_types)}")
+    
+    # Validate file size (max 10MB)
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+    
+    try:
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            contents,
+            folder="etlawm/products",
+            resource_type="image",
+            transformation=[
+                {"width": 1200, "height": 1200, "crop": "limit", "quality": "auto:best", "fetch_format": "auto"}
+            ]
+        )
+        return {
+            "url": result["secure_url"],
+            "public_id": result["public_id"],
+            "width": result.get("width"),
+            "height": result.get("height")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
+
+@api_router.delete("/upload/image")
+async def delete_image(public_id: str, admin: User = Depends(get_admin_user)):
+    """Delete an image from Cloudinary"""
+    try:
+        result = cloudinary.uploader.destroy(public_id)
+        return {"message": "Image deleted", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image deletion failed: {str(e)}")
+
 # ==================== CART ROUTES ====================
 @api_router.get("/cart", response_model=Cart)
 async def get_cart(current_user: User = Depends(get_current_user)):
@@ -667,15 +740,45 @@ async def get_order(order_id: str, current_user: User = Depends(get_current_user
     return Order(**order)
 
 # ==================== ADMIN ORDER ROUTES ====================
-@api_router.get("/admin/orders", response_model=List[Order])
+@api_router.get("/admin/orders")
 async def get_all_orders(admin: User = Depends(get_admin_user)):
     orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
     
+    # Populate user info for each order
+    user_ids = list(set(o["user_id"] for o in orders))
+    users = await db.users.find({"user_id": {"$in": user_ids}}, {"_id": 0, "user_id": 1, "name": 1, "email": 1, "picture": 1}).to_list(1000)
+    user_map = {u["user_id"]: u for u in users}
+    
+    enriched_orders = []
     for o in orders:
         if isinstance(o["created_at"], str):
             o["created_at"] = datetime.fromisoformat(o["created_at"])
+        # Add user info
+        user_info = user_map.get(o["user_id"], {})
+        o["customer_name"] = user_info.get("name", "Unknown")
+        o["customer_email"] = user_info.get("email", "Unknown")
+        o["customer_picture"] = user_info.get("picture", None)
+        enriched_orders.append(o)
     
-    return orders
+    return enriched_orders
+
+@api_router.get("/admin/orders/{order_id}")
+async def get_admin_order_detail(order_id: str, admin: User = Depends(get_admin_user)):
+    order = await db.orders.find_one({"order_id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if isinstance(order["created_at"], str):
+        order["created_at"] = datetime.fromisoformat(order["created_at"])
+    
+    # Populate user info
+    user = await db.users.find_one({"user_id": order["user_id"]}, {"_id": 0, "user_id": 1, "name": 1, "email": 1, "picture": 1})
+    if user:
+        order["customer_name"] = user.get("name", "Unknown")
+        order["customer_email"] = user.get("email", "Unknown")
+        order["customer_picture"] = user.get("picture", None)
+    
+    return order
 
 @api_router.put("/admin/orders/{order_id}/status")
 async def update_order_status(order_id: str, status: OrderStatus, admin: User = Depends(get_admin_user)):
@@ -782,6 +885,69 @@ async def remove_from_wishlist(product_id: str, current_user: User = Depends(get
         {"$pull": {"product_ids": product_id}}
     )
     return {"message": "Removed from wishlist"}
+
+# ==================== ADMIN CUSTOMER ROUTES ====================
+@api_router.get("/admin/customers")
+async def get_all_customers(admin: User = Depends(get_admin_user)):
+    """Get all registered customers with order summary"""
+    users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(1000)
+    
+    # Get order counts and total spend per user
+    pipeline = [
+        {"$match": {"status": {"$in": [OrderStatus.CONFIRMED, OrderStatus.SHIPPED, OrderStatus.DELIVERED]}}},
+        {"$group": {
+            "_id": "$user_id",
+            "total_orders": {"$sum": 1},
+            "total_spent": {"$sum": "$total_amount"},
+            "last_order_date": {"$max": "$created_at"}
+        }}
+    ]
+    order_stats = await db.orders.aggregate(pipeline).to_list(1000)
+    stats_map = {s["_id"]: s for s in order_stats}
+    
+    enriched_users = []
+    for user in users:
+        if isinstance(user.get("created_at"), str):
+            try:
+                user["created_at"] = datetime.fromisoformat(user["created_at"])
+            except (ValueError, TypeError):
+                user["created_at"] = datetime.now(timezone.utc)
+        
+        stats = stats_map.get(user["user_id"], {})
+        user["total_orders"] = stats.get("total_orders", 0)
+        user["total_spent"] = stats.get("total_spent", 0)
+        user["last_order_date"] = stats.get("last_order_date", None)
+        enriched_users.append(user)
+    
+    return enriched_users
+
+@api_router.get("/admin/customers/{user_id}")
+async def get_customer_detail(user_id: str, admin: User = Depends(get_admin_user)):
+    """Get a specific customer's details and order history"""
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    if isinstance(user.get("created_at"), str):
+        try:
+            user["created_at"] = datetime.fromisoformat(user["created_at"])
+        except (ValueError, TypeError):
+            user["created_at"] = datetime.now(timezone.utc)
+    
+    # Get customer's orders
+    orders = await db.orders.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    for o in orders:
+        if isinstance(o["created_at"], str):
+            o["created_at"] = datetime.fromisoformat(o["created_at"])
+    
+    user["orders"] = orders
+    
+    # Get stats
+    total_spent = sum(o["total_amount"] for o in orders if o["status"] in [OrderStatus.CONFIRMED, OrderStatus.SHIPPED, OrderStatus.DELIVERED])
+    user["total_orders"] = len(orders)
+    user["total_spent"] = total_spent
+    
+    return user
 
 # ==================== STATS ROUTES ====================
 @api_router.get("/admin/stats")

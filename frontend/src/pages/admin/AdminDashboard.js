@@ -125,7 +125,7 @@ const AdminDashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link to="/admin/products" className="border border-neutral-200 p-8 hover:border-black transition-colors group">
             <Package className="w-8 h-8 mb-4 group-hover:text-gold transition-colors" />
             <h3 className="text-xl font-display mb-2">Manage Products</h3>
@@ -138,9 +138,15 @@ const AdminDashboard = () => {
             <p className="text-sm text-neutral-600">View and update order statuses</p>
           </Link>
 
+          <Link to="/admin/customers" className="border border-neutral-200 p-8 hover:border-black transition-colors group">
+            <Users className="w-8 h-8 mb-4 group-hover:text-gold transition-colors" />
+            <h3 className="text-xl font-display mb-2">Customers</h3>
+            <p className="text-sm text-neutral-600">View registered customers and their order history</p>
+          </Link>
+
           <Link to="/admin/inventory" className="border border-neutral-200 p-8 hover:border-black transition-colors group">
             <TrendingUp className="w-8 h-8 mb-4 group-hover:text-gold transition-colors" />
-            <h3 className="text-xl font-display mb-2">Inventory Management</h3>
+            <h3 className="text-xl font-display mb-2">Inventory</h3>
             <p className="text-sm text-neutral-600">Track and manage stock levels</p>
           </Link>
         </div>

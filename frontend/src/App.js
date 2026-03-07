@@ -21,6 +21,9 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminProductForm from './pages/admin/AdminProductForm';
 import AdminOrders from './pages/admin/AdminOrders';
+import AdminOrderDetail from './pages/admin/AdminOrderDetail';
+import AdminCustomers from './pages/admin/AdminCustomers';
+import AdminCustomerDetail from './pages/admin/AdminCustomerDetail';
 import AdminInventory from './pages/admin/AdminInventory';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -127,6 +130,30 @@ function AppRouter() {
           element={
             <AdminRoute>
               <AdminOrders />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/orders/:orderId"
+          element={
+            <AdminRoute>
+              <AdminOrderDetail />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/customers"
+          element={
+            <AdminRoute>
+              <AdminCustomers />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/customers/:userId"
+          element={
+            <AdminRoute>
+              <AdminCustomerDetail />
             </AdminRoute>
           }
         />

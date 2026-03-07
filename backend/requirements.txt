@@ -41,6 +41,9 @@ urllib3==2.2.2
 # Payment
 razorpay==1.4.2
 
+# Image Upload
+cloudinary==1.40.0
+
 # Email
 resend==2.4.0
 
