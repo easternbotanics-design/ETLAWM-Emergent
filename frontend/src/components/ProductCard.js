@@ -8,6 +8,10 @@ const ProductCard = ({ product, onAddToWishlist }) => {
     ? Math.min(...product.variants.map(v => v.price))
     : product.base_price;
 
+  const primaryImage = product.images && product.images.length > 0
+    ? product.images[0]
+    : 'https://images.unsplash.com/photo-1617416430402-8c131ef45227';
+
   const secondaryImage = product.images && product.images.length > 1
     ? product.images[1]
     : null;
