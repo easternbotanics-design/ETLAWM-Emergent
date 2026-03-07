@@ -183,9 +183,9 @@ const AdminProductForm = () => {
         toast.error(`${file.name}: Invalid file type. Only JPEG, PNG, WebP, GIF allowed.`);
         continue;
       }
-      // Validate file size (5MB) - keep it lower for better stability
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`${file.name}: Too large (Max 5MB)`);
+      // Validate file size (4MB) - keep it below Vercel's limit
+      if (file.size > 4 * 1024 * 1024) {
+        toast.error(`${file.name}: Too large (Max 4MB)`);
         continue;
       }
 
@@ -199,7 +199,9 @@ const AdminProductForm = () => {
         newImages.push(response.data.url);
         toast.success(`${file.name} uploaded`);
       } catch (error) {
-        toast.error(`Failed to upload ${file.name}`);
+        const message = error.response?.data?.detail || `Failed to upload ${file.name}`;
+        toast.error(message);
+        console.error('Upload error:', error);
       }
     }
 
@@ -410,7 +412,7 @@ const AdminProductForm = () => {
                 <div>
                   <h2 className="text-xl font-display">Product Images</h2>
                   <p className="text-[10px] text-neutral-500 uppercase tracking-widest mt-1">
-                    Max 5MB • JPG, PNG, WebP • Recommend 1200x1600 (3:4)
+                    Max 4MB • JPG, PNG, WebP • Recommend 1200x1600 (3:4)
                   </p>
                 </div>
                 <div className="flex gap-2">
