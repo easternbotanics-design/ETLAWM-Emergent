@@ -8,6 +8,7 @@ resend.api_key = os.environ.get('RESEND_API_KEY', '')
 NOTIFICATION_EMAIL = os.environ.get('NOTIFICATION_EMAIL', 'onboarding@resend.dev')
 COMPANY_NAME = os.environ.get('COMPANY_NAME', 'ETLAWM')
 COMPANY_EMAIL = os.environ.get('COMPANY_EMAIL', 'support@etlawm.com')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://etlawm.com')
 
 def send_order_confirmation_email(to_email: str, order_data: Dict[str, Any]) -> bool:
     """Send order confirmation email to customer"""
@@ -114,7 +115,7 @@ def send_order_confirmation_email(to_email: str, order_data: Dict[str, Any]) -> 
                         <p style="margin: 0 0 10px 0; font-weight: 600; color: #000;">What's Next?</p>
                         <p style="margin: 0; color: #666; font-size: 14px; line-height: 1.6;">
                             Your order is being processed. You'll receive another email once your items are shipped.
-                            Track your order anytime at www.etlawm.com/orders
+                            Track your order anytime at {FRONTEND_URL}/orders
                         </p>
                     </div>
                 </div>
@@ -217,7 +218,7 @@ def send_order_status_update_email(to_email: str, order_data: Dict[str, Any], ne
                         </p>
                     </div>
                     
-                    <a href="https://www.etlawm.com/orders/{order_data['order_id']}" 
+                    <a href="{FRONTEND_URL}/orders/{order_data['order_id']}" 
                        style="display: inline-block; background: #000; color: white; padding: 15px 40px; text-decoration: none; text-transform: uppercase; letter-spacing: 2px; font-size: 12px; margin-top: 20px;">
                         Track Order
                     </a>
@@ -304,7 +305,7 @@ def send_payment_success_email(to_email: str, order_data: Dict[str, Any], paymen
                         </p>
                     </div>
                     
-                    <a href="https://www.etlawm.com/orders/{order_data['order_id']}" 
+                    <a href="{FRONTEND_URL}/orders/{order_data['order_id']}" 
                        style="display: inline-block; background: #000; color: white; padding: 15px 40px; text-decoration: none; text-transform: uppercase; letter-spacing: 2px; font-size: 12px; margin-top: 30px;">
                         View Order Details
                     </a>
