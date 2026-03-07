@@ -183,9 +183,9 @@ const AdminProductForm = () => {
         toast.error(`${file.name}: Invalid file type. Only JPEG, PNG, WebP, GIF allowed.`);
         continue;
       }
-      // Validate file size (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name}: File exceeds 10MB limit`);
+      // Validate file size (5MB) - keep it lower for better stability
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name}: Too large (Max 5MB)`);
         continue;
       }
 
@@ -406,27 +406,32 @@ const AdminProductForm = () => {
 
           {/* Images */}
           <div className="border border-neutral-200 p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-display">Product Images</h2>
-              <div className="flex gap-2">
-                <label className="cursor-pointer bg-black text-white hover:bg-neutral-800 transition-colors px-4 py-2 text-xs flex items-center gap-2 uppercase tracking-widest">
-                  <Upload className="w-4 h-4" />
-                  {uploadingImages ? 'Uploading...' : 'Upload Images'}
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImages}
-                  />
-                </label>
-                <Button type="button" onClick={addImageUrl} className="bg-transparent border border-black text-black hover:bg-black hover:text-white rounded-none px-4 py-2 text-xs">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add URL
-                </Button>
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-display">Product Images</h2>
+                  <p className="text-[10px] text-neutral-500 uppercase tracking-widest mt-1">
+                    Max 5MB • JPG, PNG, WebP • Recommend 1200x1600 (3:4)
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <label className={`cursor-pointer ${uploadingImages ? 'bg-neutral-400' : 'bg-black'} text-white hover:bg-neutral-800 transition-colors px-4 py-2 text-xs flex items-center gap-2 uppercase tracking-widest`}>
+                    <Upload className="w-4 h-4" />
+                    {uploadingImages ? 'Uploading...' : 'Upload Photos'}
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImages}
+                    />
+                  </label>
+                  <Button type="button" onClick={addImageUrl} className="bg-transparent border border-black text-black hover:bg-black hover:text-white rounded-none px-4 py-2 text-xs">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add URL
+                  </Button>
+                </div>
               </div>
-            </div>
 
             {uploadingImages && (
               <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 mb-4">
