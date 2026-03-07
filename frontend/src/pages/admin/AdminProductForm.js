@@ -30,7 +30,11 @@ const AdminProductForm = () => {
     base_price: '',
     featured: false,
     images: [],
-    variants: []
+    variants: [],
+    // Simple product fields (used if no variants)
+    stock: '',
+    sku: '',
+    unit: ''
   });
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -66,7 +70,11 @@ const AdminProductForm = () => {
         base_price: product.base_price,
         featured: product.featured,
         images: product.images || [],
-        variants: product.variants || []
+        variants: product.variants || [],
+        // If it's a simple product (1 variant named 'Standard' or similar)
+        stock: product.variants?.length === 1 ? product.variants[0].stock : '',
+        sku: product.variants?.length === 1 ? product.variants[0].sku : '',
+        unit: product.variants?.length === 1 ? product.variants[0].name : ''
       });
     } catch (error) {
       toast.error('Failed to load product');
@@ -127,11 +135,19 @@ const AdminProductForm = () => {
         base_price: parseFloat(formData.base_price),
         featured: formData.featured,
         images: formData.images.filter(img => img.trim() !== ''),
-        variants: formData.variants.map(v => ({
-          ...v,
-          price: parseFloat(v.price) || 0,
-          stock: parseInt(v.stock) || 0
-        }))
+        variants: formData.variants.length > 0 
+          ? formData.variants.map(v => ({
+              ...v,
+              price: parseFloat(v.price) || 0,
+              stock: parseInt(v.stock) || 0
+            }))
+          : [{
+              variant_id: `var_${Math.random().toString(36).substr(2, 8)}`,
+              name: formData.unit || 'Standard',
+              price: parseFloat(formData.base_price) || 0,
+              stock: parseInt(formData.stock) || 0,
+              sku: formData.sku || `${formData.name.substring(0,3).toUpperCase()}-STD`
+            }]
       };
 
       if (isEdit) {
@@ -347,6 +363,44 @@ const AdminProductForm = () => {
                 />
                 <Label htmlFor="featured" className="text-sm">Feature this product on homepage</Label>
               </div>
+
+              {/* Simple Stock - Only shown if no variants added */}
+              {formData.variants.length === 0 && (
+                <div className="pt-6 border-t border-neutral-100">
+                  <h3 className="text-sm font-display mb-4 uppercase tracking-widest text-neutral-500">Simple Inventory (Optional)</h3>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-widest mb-2 block">Total Stock</Label>
+                      <Input
+                        type="number"
+                        placeholder="Quantity"
+                        value={formData.stock}
+                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                        className="border-neutral-300 rounded-none p-4"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-widest mb-2 block">Unit (ml/g/pcs)</Label>
+                      <Input
+                        placeholder="e.g. 100ml"
+                        value={formData.unit}
+                        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                        className="border-neutral-300 rounded-none p-4"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase tracking-widest mb-2 block">SKU</Label>
+                      <Input
+                        placeholder="SKU-123"
+                        value={formData.sku}
+                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                        className="border-neutral-300 rounded-none p-4"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-neutral-400 mt-2 italic">Fill this if you don't need multiple sizes/variations below.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -465,54 +519,68 @@ const AdminProductForm = () => {
                       Remove
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="col-span-1 md:col-span-1">
+                      <Label className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1 block">Size / Unit</Label>
                       <Input
-                        placeholder="Name (e.g., 50ml)"
+                        placeholder="e.g. 50ml or 100g"
                         value={variant.name}
                         onChange={(e) => updateVariant(index, 'name', e.target.value)}
-                        className={`border rounded-none p-4 ${errors[`variant_${index}_name`] ? 'border-red-500' : 'border-neutral-300'}`}
+                        className={`border rounded-none p-3 text-sm ${errors[`variant_${index}_name`] ? 'border-red-500' : 'border-neutral-300'}`}
                       />
                       {errors[`variant_${index}_name`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_name`]}</p>
+                        <p className="text-red-500 text-[10px] mt-1">{errors[`variant_${index}_name`]}</p>
                       )}
                     </div>
                     <div>
+                      <Label className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1 block">Price (₹)</Label>
                       <Input
                         type="number"
                         step="0.01"
                         min="0"
-                        placeholder="Price (₹)"
+                        placeholder="Price"
                         value={variant.price}
                         onChange={(e) => updateVariant(index, 'price', e.target.value)}
-                        className={`border rounded-none p-4 ${errors[`variant_${index}_price`] ? 'border-red-500' : 'border-neutral-300'}`}
+                        className={`border rounded-none p-3 text-sm ${errors[`variant_${index}_price`] ? 'border-red-500' : 'border-neutral-300'}`}
                       />
                       {errors[`variant_${index}_price`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_price`]}</p>
+                        <p className="text-red-500 text-[10px] mt-1">{errors[`variant_${index}_price`]}</p>
                       )}
                     </div>
                     <div>
+                      <Label className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1 block">Stock</Label>
                       <Input
                         type="number"
                         min="0"
-                        placeholder="Stock Quantity"
+                        placeholder="Quantity"
                         value={variant.stock}
                         onChange={(e) => updateVariant(index, 'stock', e.target.value)}
-                        className={`border rounded-none p-4 ${errors[`variant_${index}_stock`] ? 'border-red-500' : 'border-neutral-300'}`}
+                        className={`border rounded-none p-3 text-sm ${errors[`variant_${index}_stock`] ? 'border-red-500' : 'border-neutral-300'}`}
                       />
                       {errors[`variant_${index}_stock`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_stock`]}</p>
+                        <p className="text-red-500 text-[10px] mt-1">{errors[`variant_${index}_stock`]}</p>
                       )}
                     </div>
                     <div>
-                      <Input
-                        placeholder="SKU"
-                        value={variant.sku}
-                        onChange={(e) => updateVariant(index, 'sku', e.target.value)}
-                        className={`border rounded-none p-4 ${errors[`variant_${index}_sku`] ? 'border-red-500' : 'border-neutral-300'}`}
-                      />
+                      <Label className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1 block">SKU</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="SKU"
+                          value={variant.sku}
+                          onChange={(e) => updateVariant(index, 'sku', e.target.value)}
+                          className={`flex-1 border rounded-none p-3 text-sm ${errors[`variant_${index}_sku`] ? 'border-red-500' : 'border-neutral-300'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateVariant(index, 'sku', `${formData.name.substring(0,3).toUpperCase()}-${variant.name.toUpperCase()}-${Math.floor(Math.random() * 1000)}`)}
+                          className="px-2 border border-neutral-300 hover:bg-neutral-100 text-[10px] uppercase"
+                          title="Generate SKU"
+                        >
+                          Gen
+                        </button>
+                      </div>
                       {errors[`variant_${index}_sku`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_sku`]}</p>
+                        <p className="text-red-500 text-[10px] mt-1">{errors[`variant_${index}_sku`]}</p>
                       )}
                     </div>
                   </div>

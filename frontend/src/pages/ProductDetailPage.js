@@ -31,6 +31,7 @@ const ProductDetailPage = () => {
   const [reviewText, setReviewText] = useState('');
   const [rating, setRating] = useState(5);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [mainImageIndex, setMainImageIndex] = useState(0);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -43,7 +44,9 @@ const ProductDetailPage = () => {
       const response = await axios.get(`${API_URL}/api/products/${productId}`);
       setProduct(response.data);
       if (response.data.variants && response.data.variants.length > 0) {
-        setSelectedVariant(response.data.variants[0].variant_id);
+        // Find first variant with stock, or default to first
+        const stockedVariant = response.data.variants.find(v => v.stock > 0) || response.data.variants[0];
+        setSelectedVariant(stockedVariant.variant_id);
       }
       
       // Fetch recommendations (same category products)
@@ -146,6 +149,7 @@ const ProductDetailPage = () => {
 
   const selectedVariantData = product.variants?.find(v => v.variant_id === selectedVariant);
   const displayPrice = selectedVariantData?.price || product.base_price;
+  const isOutOfStock = selectedVariantData && selectedVariantData.stock <= 0;
   const averageRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : 0;
@@ -154,22 +158,31 @@ const ProductDetailPage = () => {
     <div className="min-h-screen pt-32 pb-24" data-testid="product-detail-page">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 mb-24">
-          {/* Product Image */}
+          {/* Product Image Gallery */}
           <div className="space-y-4">
-            <div className="aspect-[3/4] overflow-hidden bg-neutral-100">
+            <div className="aspect-[3/4] overflow-hidden bg-neutral-100 relative">
               <img
-                src={product.images?.[0] || 'https://images.unsplash.com/photo-1617416430402-8c131ef45227'}
+                src={product.images?.[mainImageIndex] || 'https://images.unsplash.com/photo-1617416430402-8c131ef45227'}
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-opacity duration-300"
                 data-testid="product-detail-image"
               />
+              {isOutOfStock && (
+                <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px] flex items-center justify-center">
+                  <span className="bg-black text-white px-6 py-2 text-xs uppercase tracking-[0.2em]">Out of Stock</span>
+                </div>
+              )}
             </div>
             {product.images && product.images.length > 1 && (
               <div className="grid grid-cols-4 gap-4">
-                {product.images.slice(1, 5).map((img, idx) => (
-                  <div key={idx} className="aspect-square overflow-hidden bg-neutral-100">
-                    <img src={img} alt={`Product ${idx + 2}`} className="w-full h-full object-cover" />
-                  </div>
+                {product.images.map((img, idx) => (
+                  <button 
+                    key={idx} 
+                    onClick={() => setMainImageIndex(idx)}
+                    className={`aspect-square overflow-hidden bg-neutral-100 border-b-2 transition-all ${mainImageIndex === idx ? 'border-gold opacity-100' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                  >
+                    <img src={img} alt={`Product ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
                 ))}
               </div>
             )}
@@ -251,11 +264,12 @@ const ProductDetailPage = () => {
             <div className="flex gap-4">
               <Button
                 onClick={handleAddToCart}
-                className="flex-1 bg-black text-white hover:bg-white hover:text-black hover:border-black border border-transparent transition-all duration-300 rounded-none px-8 py-6 uppercase tracking-widest text-xs"
+                disabled={isOutOfStock}
+                className={`flex-1 ${isOutOfStock ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed' : 'bg-black text-white hover:bg-white hover:text-black hover:border-black border border-transparent'} transition-all duration-300 rounded-none px-8 py-6 uppercase tracking-widest text-xs`}
                 data-testid="add-to-cart-button"
               >
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                Add to Cart
+                {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
               </Button>
               <Button
                 onClick={handleAddToWishlist}

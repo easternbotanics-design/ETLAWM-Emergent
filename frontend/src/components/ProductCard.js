@@ -8,20 +8,39 @@ const ProductCard = ({ product, onAddToWishlist }) => {
     ? Math.min(...product.variants.map(v => v.price))
     : product.base_price;
 
-  const primaryImage = product.images && product.images.length > 0
-    ? product.images[0]
-    : 'https://images.unsplash.com/photo-1617416430402-8c131ef45227';
+  const secondaryImage = product.images && product.images.length > 1
+    ? product.images[1]
+    : null;
+
+  const totalStock = product.variants && product.variants.length > 0
+    ? product.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+    : 0;
+
+  const isOutOfStock = totalStock <= 0 && product.variants && product.variants.length > 0;
 
   return (
     <div className="group relative" data-testid={`product-card-${product.product_id}`}>
       <Link to={`/product/${product.product_id}`}>
-        <div className="aspect-[3/4] overflow-hidden mb-6 bg-neutral-100">
+        <div className="aspect-[3/4] overflow-hidden mb-6 bg-neutral-100 relative">
           <img
             src={primaryImage}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            className={`w-full h-full object-cover transition-all duration-700 ${secondaryImage ? 'group-hover:opacity-0' : 'group-hover:scale-105'}`}
             data-testid="product-image"
           />
+          {secondaryImage && (
+            <img
+              src={secondaryImage}
+              alt={`${product.name} alternate`}
+              className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105"
+            />
+          )}
+          
+          {isOutOfStock && (
+            <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-[10px] uppercase tracking-widest z-10">
+              Out of Stock
+            </div>
+          )}
         </div>
       </Link>
 
