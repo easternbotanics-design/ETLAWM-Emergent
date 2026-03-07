@@ -1,4 +1,4 @@
-# ETLAWM-Emergent: Project & Tech Stack Overview
+# ETLAWM: Project & Tech Stack Overview
 
 ETLAWM is a premium e-commerce platform featuring a luxury, monochrome aesthetic designed for high-end beauty or lifestyle products. The project includes a full-featured customer storefront, an admin dashboard for catalogue/inventory management, and a robust backend.
 
@@ -31,7 +31,7 @@ The backend is a high-performance REST API built with Python, focusing on asynch
     *   *Why:* flexible document structure fits the complex, dynamic schemas of e-commerce products and variants.
 *   **Authentication & Security**:
     *   Custom JWT-based session tokens stored in secure, HTTPOnly cookies.
-    *   Google OAuth integrated via an external Emergent Auth provider.
+    *   Google OAuth integrated via Google Cloud OAuth provider.
     *   Password hashing using `bcrypt`.
 *   **Integrations**:
     *   **Payments**: Razorpay API for handling transactions and signature verification.
