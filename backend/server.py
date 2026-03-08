@@ -33,12 +33,16 @@ db = client[os.environ['DB_NAME']]
 razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', ''), os.environ.get('RAZORPAY_KEY_SECRET', '')))
 
 # Cloudinary configuration
-cloudinary.config(
-    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
-    api_key=os.environ.get('CLOUDINARY_API_KEY', ''),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET', ''),
-    secure=True
-)
+cloudinary_config = {
+    "cloud_name": os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+    "api_key": os.environ.get('CLOUDINARY_API_KEY', ''),
+    "api_secret": os.environ.get('CLOUDINARY_API_SECRET', ''),
+    "secure": True
+}
+cloudinary.config(**cloudinary_config)
+
+# Masked logging for verification
+print(f"☁️ Cloudinary Configured: {os.environ.get('CLOUDINARY_CLOUD_NAME', 'MISSING')} (API Key: {os.environ.get('CLOUDINARY_API_KEY', 'MISSING')[:4]}***)")
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -499,7 +503,8 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
             "url": result["secure_url"],
             "public_id": result["public_id"],
             "width": result.get("width"),
-            "height": result.get("height")
+            "height": result.get("height"),
+            "server_version": "v1.2-simplified-upload"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")

@@ -192,16 +192,23 @@ const AdminProductForm = () => {
       try {
         const fd = new FormData();
         fd.append('file', file);
-        const response = await axios.post(`${API_URL}/api/upload/image`, fd, {
+        // Add cache busting timestamp to URL
+        const response = await axios.post(`${API_URL}/api/upload/image?v=${Date.now()}`, fd, {
           withCredentials: true,
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        
+        console.log('Upload success, server version:', response.data.server_version);
         newImages.push(response.data.url);
         toast.success(`${file.name} uploaded`);
       } catch (error) {
         const message = error.response?.data?.detail || `Failed to upload ${file.name}`;
         toast.error(message);
-        console.error('Upload error:', error);
+        console.error('Upload error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
       }
     }
 
