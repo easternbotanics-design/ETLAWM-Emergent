@@ -488,14 +488,12 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
         raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
     
     try:
-        # Upload to Cloudinary
+        # Upload to Cloudinary - Simplified to fix 'Invalid Signature' errors
+        logger.info(f"Uploading file: {file.filename}, type: {file.content_type} to Cloudinary folder 'etlawm/products'")
         result = cloudinary.uploader.upload(
             contents,
             folder="etlawm/products",
-            resource_type="image",
-            transformation=[
-                {"width": 1200, "height": 1200, "crop": "limit", "quality": "auto:best", "fetch_format": "auto"}
-            ]
+            resource_type="auto"
         )
         return {
             "url": result["secure_url"],
