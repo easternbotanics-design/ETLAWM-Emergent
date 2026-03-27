@@ -40,12 +40,16 @@ cloudinary_api_key = os.environ.get('CLOUDINARY_API_KEY', '').strip()
 cloudinary_api_secret = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
 
 if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_secret:
-    print("⚠️  WARNING: Cloudinary credentials missing! Image uploads will fail.")
-    print(f"   CLOUDINARY_CLOUD_NAME: {'SET' if cloudinary_cloud_name else 'MISSING'}")
-    print(f"   CLOUDINARY_API_KEY: {'SET' if cloudinary_api_key else 'MISSING'}")
-    print(f"   CLOUDINARY_API_SECRET: {'SET' if cloudinary_api_secret else 'MISSING'}")
+    print("⚠️  CRITICAL: Cloudinary credentials missing from Environment!")
+    print(f"   CLOUD_NAME: {'✅ Found' if cloudinary_cloud_name else '❌ MISSING'}")
+    print(f"   API_KEY: {'✅ Found' if cloudinary_api_key else '❌ MISSING'}")
+    print(f"   API_SECRET: {'✅ Found' if cloudinary_api_secret else '❌ MISSING'}")
 else:
-    print(f"☁️ Cloudinary Configured: {cloudinary_cloud_name} (API Key: {cloudinary_api_key[:4]}***)")
+    # Use logger instead of print for production logs visibility
+    logger.info(f"☁️ Cloudinary Configuration Active: {cloudinary_cloud_name}")
+    logger.info(f"   API Key masked: {cloudinary_api_key[:4]}***{cloudinary_api_key[-4:] if len(cloudinary_api_key) > 8 else ''}")
+    # Don't log secret, but confirm it has content
+    logger.info(f"   API Secret length: {len(cloudinary_api_secret)} chars")
 
 cloudinary.config(
     cloud_name=cloudinary_cloud_name,
