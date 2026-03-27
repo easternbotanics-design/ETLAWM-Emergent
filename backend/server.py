@@ -23,6 +23,13 @@ from email_service import (
     send_payment_success_email
 )
 
+# Initialize logging early
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -45,11 +52,10 @@ if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_sec
     print(f"   API_KEY: {'✅ Found' if cloudinary_api_key else '❌ MISSING'}")
     print(f"   API_SECRET: {'✅ Found' if cloudinary_api_secret else '❌ MISSING'}")
 else:
-    # Use logger instead of print for production logs visibility
-    logger.info(f"☁️ Cloudinary Configuration Active: {cloudinary_cloud_name}")
-    logger.info(f"   API Key masked: {cloudinary_api_key[:4]}***{cloudinary_api_key[-4:] if len(cloudinary_api_key) > 8 else ''}")
-    # Don't log secret, but confirm it has content
-    logger.info(f"   API Secret length: {len(cloudinary_api_secret)} chars")
+    # Use print for early startup messages so they show up immediately in Render logs
+    print(f"☁️ Cloudinary Configuration Active: {cloudinary_cloud_name}")
+    print(f"   API Key masked: {cloudinary_api_key[:4]}***{cloudinary_api_key[-4:] if len(cloudinary_api_key) > 8 else ''}")
+    print(f"   API Secret length: {len(cloudinary_api_secret)} chars")
 
 cloudinary.config(
     cloud_name=cloudinary_cloud_name,
@@ -1063,12 +1069,6 @@ app.include_router(api_router)
 
 # NOTE: CORS middleware is now added near the top of the file (after app = FastAPI())
 # so that preflight OPTIONS requests for file uploads are handled correctly.
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
