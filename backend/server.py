@@ -1,7 +1,8 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi.responses import JSONResponse
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -54,7 +55,7 @@ if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_sec
 else:
     # Use print for early startup messages so they show up immediately in Render logs
     print(f"☁️ Cloudinary Configuration Active: {cloudinary_cloud_name}")
-    print(f"   API Key masked: {cloudinary_api_key[:4]}***{cloudinary_api_key[-4:] if len(cloudinary_api_key) > 8 else ''}")
+    print(f"   API Key starts with: {cloudinary_api_key[:4] if cloudinary_api_key else 'NONE'}")
     print(f"   API Secret length: {len(cloudinary_api_secret)} chars")
 
 cloudinary.config(
@@ -589,8 +590,12 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
             "server_version": "v1.3-debug-upload"
         }
     except Exception as e:
-        logger.error(f"Cloudinary upload failed: {type(e).__name__}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
+        logger.error(f"Cloudinary upload error: {str(e)}")
+        # Include more detail in the response for debugging signature issues
+        error_msg = str(e)
+        if "Invalid Signature" in error_msg:
+            error_msg += f" (Debug: Cloud={cloudinary_cloud_name}, Key={cloudinary_api_key[:4]}***)"
+        return JSONResponse(status_code=500, content={"message": f"Image upload failed: {error_msg}"})
 
 @api_router.delete("/upload/image")
 async def delete_image(public_id: str, admin: User = Depends(get_admin_user)):
