@@ -1,4 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -33,18 +35,70 @@ db = client[os.environ['DB_NAME']]
 razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', ''), os.environ.get('RAZORPAY_KEY_SECRET', '')))
 
 # Cloudinary configuration
-cloudinary_config = {
-    "cloud_name": os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
-    "api_key": os.environ.get('CLOUDINARY_API_KEY', ''),
-    "api_secret": os.environ.get('CLOUDINARY_API_SECRET', ''),
-    "secure": True
-}
-cloudinary.config(**cloudinary_config)
+cloudinary_cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+cloudinary_api_key = os.environ.get('CLOUDINARY_API_KEY', '')
+cloudinary_api_secret = os.environ.get('CLOUDINARY_API_SECRET', '')
 
-# Masked logging for verification
-print(f"☁️ Cloudinary Configured: {os.environ.get('CLOUDINARY_CLOUD_NAME', 'MISSING')} (API Key: {os.environ.get('CLOUDINARY_API_KEY', 'MISSING')[:4]}***)")
+if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_secret:
+    print("⚠️  WARNING: Cloudinary credentials missing! Image uploads will fail.")
+    print(f"   CLOUDINARY_CLOUD_NAME: {'SET' if cloudinary_cloud_name else 'MISSING'}")
+    print(f"   CLOUDINARY_API_KEY: {'SET' if cloudinary_api_key else 'MISSING'}")
+    print(f"   CLOUDINARY_API_SECRET: {'SET' if cloudinary_api_secret else 'MISSING'}")
+else:
+    print(f"☁️ Cloudinary Configured: {cloudinary_cloud_name} (API Key: {cloudinary_api_key[:4]}***)")
+
+cloudinary.config(
+    cloud_name=cloudinary_cloud_name,
+    api_key=cloudinary_api_key,
+    api_secret=cloudinary_api_secret,
+    secure=True
+)
 
 app = FastAPI()
+
+# Thread pool for CPU-intensive work (bcrypt)
+_bcrypt_executor = ThreadPoolExecutor(max_workers=4)
+
+@app.on_event("startup")
+async def create_indexes():
+    """Create database indexes for fast lookups - eliminates full collection scans"""
+    print("📇 Creating database indexes...")
+    try:
+        # Users - queried by email on every login, and by user_id on every auth check
+        await db.users.create_index("email", unique=True)
+        await db.users.create_index("user_id", unique=True)
+        # Sessions - queried by session_token on EVERY authenticated request
+        await db.user_sessions.create_index("session_token", unique=True)
+        await db.user_sessions.create_index("user_id")
+        await db.user_sessions.create_index("expires_at")
+        # Products
+        await db.products.create_index("product_id", unique=True)
+        await db.products.create_index("category")
+        await db.products.create_index("featured")
+        # Carts
+        await db.carts.create_index("user_id", unique=True)
+        # Orders
+        await db.orders.create_index("order_id", unique=True)
+        await db.orders.create_index("user_id")
+        await db.orders.create_index([("user_id", 1), ("created_at", -1)])
+        # Reviews
+        await db.reviews.create_index("product_id")
+        await db.reviews.create_index([("user_id", 1), ("product_id", 1)], unique=True)
+        # Wishlists
+        await db.wishlists.create_index("user_id", unique=True)
+        print("✅ Database indexes created successfully")
+    except Exception as e:
+        print(f"⚠️ Index creation warning (may already exist): {e}")
+
+# CORS must be added BEFORE routes for preflight OPTIONS requests to work
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', 'https://etlawm.com,https://www.etlawm.com,https://etlawm-emergent.vercel.app,http://localhost:3000').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 
@@ -283,8 +337,14 @@ async def login(login_data: UserLogin, response: Response):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Check password
-    if not bcrypt.checkpw(login_data.password.encode(), user["password"].encode()):
+    # Check password (run in thread pool to avoid blocking async event loop)
+    password_valid = await asyncio.get_event_loop().run_in_executor(
+        _bcrypt_executor,
+        bcrypt.checkpw,
+        login_data.password.encode(),
+        user["password"].encode()
+    )
+    if not password_valid:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Create session
@@ -358,7 +418,7 @@ async def google_auth_session(token_data: GoogleTokenData, response: Response):
         }
         # A dummy password hash so DB structure is satisfied if needed
         import bcrypt
-        user["password"] = bcrypt.hashpw(os.urandom(32), bcrypt.gensalt()).decode()
+        user["password"] = bcrypt.hashpw(os.urandom(32), bcrypt.gensalt(4)).decode()
         await db.users.insert_one(user)
     else:
         print(f"✅ Found existing user: {user['user_id']}")
@@ -481,6 +541,14 @@ async def get_categories():
 @api_router.post("/upload/image")
 async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_admin_user)):
     """Upload an image to Cloudinary and return the URL"""
+    # Check Cloudinary credentials are configured
+    if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_secret:
+        logger.error("Cloudinary credentials not configured in .env")
+        raise HTTPException(
+            status_code=500, 
+            detail="Image upload service not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your .env file."
+        )
+    
     # Validate file type
     allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
     if file.content_type not in allowed_types:
@@ -488,25 +556,30 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
     
     # Validate file size (max 10MB)
     contents = await file.read()
+    file_size_mb = len(contents) / (1024 * 1024)
+    logger.info(f"Received file: {file.filename}, type: {file.content_type}, size: {file_size_mb:.2f}MB")
+    
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
     
     try:
-        # Upload to Cloudinary - Simplified to fix 'Invalid Signature' errors
-        logger.info(f"Uploading file: {file.filename}, type: {file.content_type} to Cloudinary folder 'etlawm/products'")
+        # Upload to Cloudinary
+        logger.info(f"Uploading {file.filename} to Cloudinary folder 'etlawm/products'...")
         result = cloudinary.uploader.upload(
             contents,
             folder="etlawm/products",
             resource_type="auto"
         )
+        logger.info(f"Upload successful: {result.get('secure_url')}")
         return {
             "url": result["secure_url"],
             "public_id": result["public_id"],
             "width": result.get("width"),
             "height": result.get("height"),
-            "server_version": "v1.2-simplified-upload"
+            "server_version": "v1.3-debug-upload"
         }
     except Exception as e:
+        logger.error(f"Cloudinary upload failed: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
 
 @api_router.delete("/upload/image")
@@ -984,13 +1057,8 @@ async def get_stats(admin: User = Depends(get_admin_user)):
 # Include router
 app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', 'https://etlawm.com,https://www.etlawm.com,https://etlawm-emergent.vercel.app,http://localhost:3000').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# NOTE: CORS middleware is now added near the top of the file (after app = FastAPI())
+# so that preflight OPTIONS requests for file uploads are handled correctly.
 
 logging.basicConfig(
     level=logging.INFO,
