@@ -5,14 +5,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        gold: '#D4AF37',
-        luxury: {
-          black: '#000000',
-          white: '#FFFFFF',
-          neutral: {
-            light: '#F9F9F9',
-            dark: '#1A1A1A',
-          },
+        botanical: {
+          light: '#fcfaf8',
+          sage: '#8da18d',
+          deep: '#2d3b2d',
+          earth: '#a89481',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -49,14 +46,27 @@ module.exports = {
         },
       },
       fontFamily: {
-        display: ['Playfair Display', 'serif'],
+        display: ['Outfit', 'sans-serif'],
         body: ['Manrope', 'sans-serif'],
-        accent: ['Cormorant Garamond', 'serif'],
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-out',
+        'slide-up': 'slideUp 0.5s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(20px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
       },
     },
   },

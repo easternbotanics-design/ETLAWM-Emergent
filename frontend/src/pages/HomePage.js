@@ -52,54 +52,53 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen" data-testid="home-page">
+    <div className="min-h-screen bg-botanical-light" data-testid="home-page">
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden" data-testid="hero-section">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1762764919450-560fd6515192"
-            alt="Hero"
-            className="w-full h-full object-cover"
+            src="https://images.unsplash.com/photo-1608248597279-f99d160bfcbc"
+            alt="Botanical Hero"
+            className="w-full h-full object-cover scale-105 animate-fade-in"
           />
-          <div className="absolute inset-0 bg-black/30"></div>
+          <div className="absolute inset-0 bg-black/10"></div>
         </div>
 
-        <div className="relative z-10 text-center text-white px-6">
-          <h1 className="font-display text-6xl md:text-8xl mb-8 tracking-tight" data-testid="hero-title">
-            Luxury Redefined
+        <div className="relative z-10 text-center text-primary px-6 animate-slide-up">
+          <span className="text-[10px] uppercase tracking-[0.4em] mb-6 block font-semibold text-primary/60">The New Standard of Care</span>
+          <h1 className="font-display text-5xl md:text-8xl mb-10 tracking-tighter" data-testid="hero-title">
+            Herbal Rituals
           </h1>
-          <p className="text-base md:text-lg mb-12 tracking-wide max-w-2xl mx-auto" data-testid="hero-subtitle">
-            Discover premium beauty and cosmetics crafted for the modern individual
+          <p className="text-[15px] md:text-[17px] mb-14 tracking-tight max-w-xl mx-auto font-light leading-relaxed opacity-80" data-testid="hero-subtitle">
+            Minimalist herbal oils and potent face serums crafted from nature's most effective botanicals. Pure, honest, and transformative.
           </p>
           <Link to="/shop">
             <Button
-              className="bg-white text-black hover:bg-black hover:text-white hover:border-white border border-transparent transition-all duration-300 rounded-none px-12 py-6 uppercase tracking-widest text-xs"
+              className="bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-500 rounded-px px-14 py-7 uppercase tracking-[0.2em] text-[10px] font-semibold border-none"
               data-testid="shop-now-button"
             >
-              Shop Now
-              <ArrowRight className="ml-2 w-4 h-4" />
+              Explore Collection
+              <ArrowRight className="ml-3 w-4 h-4" />
             </Button>
           </Link>
         </div>
       </section>
 
       {/* Featured Products */}
-      <section className="py-24 md:py-32 px-6 md:px-12 max-w-7xl mx-auto" data-testid="featured-section">
-        <div className="text-center mb-16">
-          <h2 className="font-display text-4xl md:text-5xl mb-4" data-testid="featured-title">
-            Featured Collection
+      <section className="py-32 md:py-48 px-6 md:px-12 max-w-7xl mx-auto" data-testid="featured-section">
+        <div className="text-center mb-24">
+          <span className="text-[10px] uppercase tracking-[0.3em] text-accent/80 font-bold mb-4 block">Essentials</span>
+          <h2 className="font-display text-4xl md:text-5xl tracking-tighter" data-testid="featured-title">
+             The Botanical Edit
           </h2>
-          <p className="text-sm uppercase tracking-widest text-neutral-600">
-            Curated for you
-          </p>
         </div>
 
         {loading ? (
           <div className="text-center py-20">
-            <div className="w-16 h-16 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12" data-testid="featured-products-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-24" data-testid="featured-products-grid">
             {featuredProducts.map((product) => (
               <ProductCard
                 key={product.product_id}
@@ -110,47 +109,49 @@ const HomePage = () => {
           </div>
         )}
 
-        <div className="text-center mt-16">
+        <div className="text-center mt-24">
           <Link to="/shop">
             <Button
-              className="bg-transparent text-black border border-black hover:bg-black hover:text-white transition-all duration-300 rounded-none px-12 py-6 uppercase tracking-widest text-xs"
+              variant="outline"
+              className="border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-500 rounded-px px-14 py-7 uppercase tracking-[0.2em] text-[10px] font-semibold"
               data-testid="view-all-button"
             >
-              View All Products
+              View Full Apothecary
             </Button>
           </Link>
         </div>
       </section>
 
       {/* Brand Story */}
-      <section className="py-24 md:py-32 bg-neutral-50" data-testid="brand-story-section">
+      <section className="py-32 md:py-48 bg-secondary/30" data-testid="brand-story-section">
         <div className="max-w-7xl mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+            <div className="relative group">
               <img
-                src="https://images.unsplash.com/photo-1762522903557-891c8dc11f4b"
-                alt="Brand Story"
-                className="w-full h-[600px] object-cover"
+                src="https://images.unsplash.com/photo-1556228720-195a672e8a03"
+                alt="Herbal Process"
+                className="w-full h-[650px] object-cover grayscale-[0.2] transition-all duration-700 group-hover:grayscale-0"
               />
+              <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-botanical-sage/20 -z-10 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-700"></div>
             </div>
-            <div className="space-y-8">
-              <h2 className="font-display text-4xl md:text-5xl">
-                Our Philosophy
+            <div className="space-y-10">
+              <span className="text-[10px] uppercase tracking-[0.3em] text-accent font-bold">Our Philosophy</span>
+              <h2 className="font-display text-4xl md:text-6xl tracking-tighter leading-[1.1]">
+                Less is more, <br/> pure is better.
               </h2>
-              <p className="text-base leading-relaxed text-neutral-700">
-                ETLAWM represents the intersection of luxury and authenticity. Every product
-                is carefully crafted to enhance your natural beauty while respecting the
-                environment and your skin.
-              </p>
-              <p className="text-base leading-relaxed text-neutral-700">
-                We believe in transparency, quality, and the power of nature combined with
-                science to create transformative beauty experiences.
-              </p>
+              <div className="space-y-6 text-[15px] leading-relaxed text-primary/80 font-light">
+                <p>
+                  ETLAWM was born from a desire to return to the essentials. In a world of complex ingredients, we find power in simplicity. Our herbal oils and serums are formulated with singular focus: to nourish without compromise.
+                </p>
+                <p>
+                  Every drop of our ETLAWM Herbal Oil is infused with centuries of botanical wisdom, refined for the modern minimalist lifestyle. No fillers, no synthetic fragrances—just pure, potent nature.
+                </p>
+              </div>
               <Link to="/shop">
                 <Button
-                  className="bg-black text-white hover:bg-white hover:text-black hover:border-black border border-transparent transition-all duration-300 rounded-none px-8 py-4 uppercase tracking-widest text-xs"
+                  className="bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-500 rounded-px px-10 py-6 uppercase tracking-[0.2em] text-[10px] font-semibold"
                 >
-                  Explore Products
+                  Our Origins
                 </Button>
               </Link>
             </div>

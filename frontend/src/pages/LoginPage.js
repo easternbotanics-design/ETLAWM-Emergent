@@ -14,7 +14,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, register } = useAuth();
+  const { login, register, setUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,10 +52,15 @@ const LoginPage = () => {
         );
         // Login the user in the context
         toast.success('Google login successful');
-        // Actually we need to set the user state since the context doesn't know. Let's do a hard reload or manually set state.
-        // The easiest way is to reload or navigate. We'll navigate and the AuthProvider checkAuth will run if we're clever, but checkAuth runs on mount.
-        // Let's just reload the page which guarantees the new cookie is read
-        window.location.href = from;
+        
+        // Set the user in the AuthContext manually so we don't need a page reload
+        if (setUser && res.data && res.data.user) {
+          setUser(res.data.user);
+          localStorage.setItem('etlawm_user', JSON.stringify(res.data.user));
+        }
+        
+        // Client-side navigation is much faster than window.location.href
+        navigate(from, { replace: true });
       } catch (err) {
         toast.error('Google login failed. Please try again.');
         setLoading(false);
