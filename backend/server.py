@@ -35,9 +35,9 @@ db = client[os.environ['DB_NAME']]
 razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', ''), os.environ.get('RAZORPAY_KEY_SECRET', '')))
 
 # Cloudinary configuration
-cloudinary_cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
-cloudinary_api_key = os.environ.get('CLOUDINARY_API_KEY', '')
-cloudinary_api_secret = os.environ.get('CLOUDINARY_API_SECRET', '')
+cloudinary_cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()
+cloudinary_api_key = os.environ.get('CLOUDINARY_API_KEY', '').strip()
+cloudinary_api_secret = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
 
 if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_secret:
     print("⚠️  WARNING: Cloudinary credentials missing! Image uploads will fail.")
