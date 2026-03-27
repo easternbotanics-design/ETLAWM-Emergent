@@ -595,7 +595,7 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
         error_msg = str(e)
         if "Invalid Signature" in error_msg:
             error_msg += f" (Debug: Cloud={cloudinary_cloud_name}, Key={cloudinary_api_key[:4]}***)"
-        return JSONResponse(status_code=500, content={"message": f"Image upload failed: {error_msg}"})
+        return JSONResponse(status_code=500, content={"detail": f"Image upload failed: {error_msg}"})
 
 @api_router.delete("/upload/image")
 async def delete_image(public_id: str, admin: User = Depends(get_admin_user)):

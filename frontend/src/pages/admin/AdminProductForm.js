@@ -202,12 +202,13 @@ const AdminProductForm = () => {
         newImages.push(response.data.url);
         toast.success(`${file.name} uploaded`);
       } catch (error) {
-        const message = error.response?.data?.detail || `Failed to upload ${file.name}`;
+        const message = error.response?.data?.detail || error.response?.data?.message || `Failed to upload ${file.name}`;
         toast.error(message);
         console.error('Upload error details:', {
           status: error.response?.status,
           data: error.response?.data,
-          message: error.message
+          message: error.message,
+          config: error.config
         });
       }
     }
