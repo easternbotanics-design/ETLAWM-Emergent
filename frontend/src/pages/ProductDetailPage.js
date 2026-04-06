@@ -86,6 +86,19 @@ const ProductDetailPage = () => {
     }
   };
 
+  // Helper to build auth config with token fallback
+  const getAuthConfig = (extra = {}) => {
+    const config = { withCredentials: true, ...extra };
+    const storedToken = localStorage.getItem('etlawm_session_token');
+    if (storedToken) {
+      config.headers = {
+        ...(config.headers || {}),
+        Authorization: `Bearer ${storedToken}`,
+      };
+    }
+    return config;
+  };
+
   const handleAddToWishlist = async () => {
     if (!user) {
       toast.error('Please login to add items to wishlist');
@@ -97,7 +110,7 @@ const ProductDetailPage = () => {
       await axios.post(
         `${API_URL}/api/wishlist/${productId}`,
         {},
-        { withCredentials: true }
+        getAuthConfig()
       );
       toast.success('Added to wishlist');
     } catch (error) {
@@ -121,7 +134,7 @@ const ProductDetailPage = () => {
           rating,
           comment: reviewText
         },
-        { withCredentials: true }
+        getAuthConfig()
       );
       toast.success('Review submitted');
       setReviewText('');

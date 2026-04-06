@@ -58,6 +58,10 @@ const LoginPage = () => {
           setUser(res.data.user);
           localStorage.setItem('etlawm_user', JSON.stringify(res.data.user));
         }
+        // Store session token for Authorization header fallback (cross-origin cookie fix)
+        if (res.data && res.data.session_token) {
+          localStorage.setItem('etlawm_session_token', res.data.session_token);
+        }
         
         // Client-side navigation is much faster than window.location.href
         navigate(from, { replace: true });

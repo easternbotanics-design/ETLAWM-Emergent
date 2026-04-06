@@ -192,10 +192,16 @@ const AdminProductForm = () => {
       try {
         const fd = new FormData();
         fd.append('file', file);
+        // Build headers with Authorization fallback for cross-origin cookie issues
+        const uploadHeaders = { 'Content-Type': 'multipart/form-data' };
+        const sessionToken = localStorage.getItem('etlawm_session_token');
+        if (sessionToken) {
+          uploadHeaders['Authorization'] = `Bearer ${sessionToken}`;
+        }
         // Add cache busting timestamp to URL
         const response = await axios.post(`${API_URL}/api/upload/image?v=${Date.now()}`, fd, {
           withCredentials: true,
-          headers: { 'Content-Type': 'multipart/form-data' }
+          headers: uploadHeaders
         });
         
         console.log('Upload success, server version:', response.data.server_version);

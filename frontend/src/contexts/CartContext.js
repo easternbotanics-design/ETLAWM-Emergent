@@ -6,6 +6,19 @@ const CartContext = createContext(null);
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+// Helper to build request config with Authorization header fallback
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const storedToken = localStorage.getItem('etlawm_session_token');
+  if (storedToken) {
+    config.headers = {
+      ...(config.headers || {}),
+      Authorization: `Bearer ${storedToken}`,
+    };
+  }
+  return config;
+};
+
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState({ items: [] });
   const [loading, setLoading] = useState(false);
@@ -15,9 +28,7 @@ export const CartProvider = ({ children }) => {
     if (!user) return;
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/cart`, {
-        withCredentials: true
-      });
+      const response = await axios.get(`${API_URL}/api/cart`, getAuthConfig());
       setCart(response.data);
     } catch (error) {
       console.error('Failed to fetch cart:', error);
@@ -38,7 +49,7 @@ export const CartProvider = ({ children }) => {
       await axios.post(
         `${API_URL}/api/cart/items`,
         { product_id: productId, variant_id: variantId, quantity },
-        { withCredentials: true }
+        getAuthConfig()
       );
       await fetchCart();
     } catch (error) {
@@ -51,10 +62,7 @@ export const CartProvider = ({ children }) => {
       await axios.put(
         `${API_URL}/api/cart/items/${productId}`,
         null,
-        {
-          params: { quantity, variant_id: variantId },
-          withCredentials: true
-        }
+        getAuthConfig({ params: { quantity, variant_id: variantId } })
       );
       await fetchCart();
     } catch (error) {
@@ -66,10 +74,7 @@ export const CartProvider = ({ children }) => {
     try {
       await axios.delete(
         `${API_URL}/api/cart/items/${productId}`,
-        {
-          params: { variant_id: variantId },
-          withCredentials: true
-        }
+        getAuthConfig({ params: { variant_id: variantId } })
       );
       await fetchCart();
     } catch (error) {
@@ -79,7 +84,7 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = async () => {
     try {
-      await axios.delete(`${API_URL}/api/cart`, { withCredentials: true });
+      await axios.delete(`${API_URL}/api/cart`, getAuthConfig());
       setCart({ items: [] });
     } catch (error) {
       throw error;

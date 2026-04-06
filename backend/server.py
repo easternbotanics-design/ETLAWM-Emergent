@@ -17,6 +17,7 @@ import bcrypt
 import razorpay
 import cloudinary
 import cloudinary.uploader
+import hashlib
 from enum import Enum
 from email_service import (
     send_order_confirmation_email, 
@@ -43,9 +44,13 @@ db = client[os.environ['DB_NAME']]
 razorpay_client = razorpay.Client(auth=(os.environ.get('RAZORPAY_KEY_ID', '').strip(' "\''), os.environ.get('RAZORPAY_KEY_SECRET', '').strip(' "\'')))
 
 # Cloudinary configuration
-cloudinary_cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip(' "\'')
-cloudinary_api_key = os.environ.get('CLOUDINARY_API_KEY', '').strip(' "\'')
-cloudinary_api_secret = os.environ.get('CLOUDINARY_API_SECRET', '').strip(' "\'')
+def get_clean_env(name):
+    val = os.environ.get(name, '').strip()
+    return val.strip(' "\'').strip()
+
+cloudinary_cloud_name = get_clean_env('CLOUDINARY_CLOUD_NAME')
+cloudinary_api_key = get_clean_env('CLOUDINARY_API_KEY')
+cloudinary_api_secret = get_clean_env('CLOUDINARY_API_SECRET')
 
 if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_secret:
     print("⚠️  CRITICAL: Cloudinary credentials missing from Environment!")
@@ -55,8 +60,11 @@ if not cloudinary_cloud_name or not cloudinary_api_key or not cloudinary_api_sec
 else:
     # Use print for early startup messages so they show up immediately in Render logs
     print(f"☁️ Cloudinary Configuration Active: {cloudinary_cloud_name}")
-    print(f"   API Key starts with: {cloudinary_api_key[:4] if cloudinary_api_key else 'NONE'}")
+    print(f"   API Key: {cloudinary_api_key[:4]}...{cloudinary_api_key[-4:] if len(cloudinary_api_key) > 8 else '***'}")
     print(f"   API Secret length: {len(cloudinary_api_secret)} chars")
+    # Don't log the full secret but first/last help identify pasting errors
+    if len(cloudinary_api_secret) > 4:
+        print(f"   API Secret starts/ends with: {cloudinary_api_secret[0]}...{cloudinary_api_secret[-1]}")
 
 cloudinary.config(
     cloud_name=cloudinary_cloud_name,
@@ -73,33 +81,47 @@ _bcrypt_executor = ThreadPoolExecutor(max_workers=4)
 @app.on_event("startup")
 async def create_indexes():
     """Create database indexes for fast lookups - eliminates full collection scans"""
-    print("📇 Creating database indexes...")
-    try:
-        # Users - queried by email on every login, and by user_id on every auth check
-        await db.users.create_index("email", unique=True)
-        await db.users.create_index("user_id", unique=True)
-        # Sessions - queried by session_token on EVERY authenticated request
-        await db.user_sessions.create_index("session_token", unique=True)
-        await db.user_sessions.create_index("user_id")
-        await db.user_sessions.create_index("expires_at")
-        # Products
-        await db.products.create_index("product_id", unique=True)
-        await db.products.create_index("category")
-        await db.products.create_index("featured")
-        # Carts
-        await db.carts.create_index("user_id", unique=True)
-        # Orders
-        await db.orders.create_index("order_id", unique=True)
-        await db.orders.create_index("user_id")
-        await db.orders.create_index([("user_id", 1), ("created_at", -1)])
-        # Reviews
-        await db.reviews.create_index("product_id")
-        await db.reviews.create_index([("user_id", 1), ("product_id", 1)], unique=True)
-        # Wishlists
-        await db.wishlists.create_index("user_id", unique=True)
-        print("✅ Database indexes created successfully")
-    except Exception as e:
-        print(f"⚠️ Index creation warning (may already exist): {e}")
+    print("📇 Initializing database indexes...")
+    
+    # helper for individual index creation to prevent one failure stopping all
+    async def try_index(collection, *args, **kwargs):
+        try:
+            await collection.create_index(*args, **kwargs)
+        except Exception as e:
+            # Code 11000 is duplicate key error, which usually means unique=True failed on dirty data
+            error_type = "Duplicate key" if "11000" in str(e) else "Error"
+            print(f"  ⚠️ {error_type} in {collection.name} index {args}: {e}")
+
+    # Users
+    await try_index(db.users, "email", unique=True)
+    await try_index(db.users, "user_id", unique=True)
+    
+    # Sessions
+    await try_index(db.user_sessions, "session_token", unique=True)
+    await try_index(db.user_sessions, "user_id")
+    await try_index(db.user_sessions, "expires_at")
+    
+    # Products
+    await try_index(db.products, "product_id", unique=True)
+    await try_index(db.products, "category")
+    await try_index(db.products, "featured")
+    
+    # Carts
+    await try_index(db.carts, "user_id", unique=True)
+    
+    # Orders
+    await try_index(db.orders, "order_id", unique=True)
+    await try_index(db.orders, "user_id")
+    await try_index(db.orders, [("user_id", 1), ("created_at", -1)])
+    
+    # Reviews
+    await try_index(db.reviews, "product_id")
+    await try_index(db.reviews, [("user_id", 1), ("product_id", 1)], unique=True)
+    
+    # Wishlists
+    await try_index(db.wishlists, "user_id", unique=True)
+    
+    print("✅ Finished index setup (some may have warnings if duplicates exist)")
 
 # CORS must be added BEFORE routes for preflight OPTIONS requests to work
 app.add_middleware(
@@ -319,8 +341,13 @@ async def register(user_data: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Hash password
-    hashed_password = bcrypt.hashpw(user_data.password.encode(), bcrypt.gensalt())
+    # Hash password in thread pool to avoid blocking async event loop; rounds=10 is ~3x faster than default 12
+    hashed_password = await asyncio.get_event_loop().run_in_executor(
+        _bcrypt_executor,
+        bcrypt.hashpw,
+        user_data.password.encode(),
+        bcrypt.gensalt(rounds=10)
+    )
     
     # Create user
     user_id = f"user_{uuid.uuid4().hex[:12]}"
@@ -476,7 +503,13 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 @api_router.post("/auth/logout")
 async def logout(request: Request, response: Response, current_user: User = Depends(get_current_user)):
+    # Try cookie first, then Authorization header
     session_token = request.cookies.get("session_token")
+    if not session_token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
     if session_token:
         await db.user_sessions.delete_one({"session_token": session_token})
     
@@ -579,7 +612,10 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
         result = cloudinary.uploader.upload(
             contents,
             folder="etlawm/products",
-            resource_type="auto"
+            resource_type="auto",
+            api_key=cloudinary_api_key,
+            api_secret=cloudinary_api_secret,
+            cloud_name=cloudinary_cloud_name
         )
         logger.info(f"Upload successful: {result.get('secure_url')}")
         return {
@@ -594,7 +630,15 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
         # Include more detail in the response for debugging signature issues
         error_msg = str(e)
         if "Invalid Signature" in error_msg:
-            error_msg += f" (Debug: Cloud={cloudinary_cloud_name}, Key={cloudinary_api_key[:4]}***, SecretLen={len(cloudinary_api_secret)}, Env='Render/Live')"
+            # Safely report identifying bits of credentials being used
+            debug_info = (
+                f"Cloud={cloudinary_cloud_name}, "
+                f"Key={cloudinary_api_key[:4]}...{cloudinary_api_key[-4:] if len(cloudinary_api_key) > 8 else '***'}, "
+                f"SecretLen={len(cloudinary_api_secret)}, "
+                f"SecretHex={hashlib.md5(cloudinary_api_secret.encode()).hexdigest()[:8]} (MD5 hash head for comparison), "
+                f"Env='Render/Live'"
+            )
+            error_msg += f" (Debug: {debug_info})"
         return JSONResponse(status_code=500, content={"detail": f"Image upload failed: {error_msg}"})
 
 @api_router.delete("/upload/image")
