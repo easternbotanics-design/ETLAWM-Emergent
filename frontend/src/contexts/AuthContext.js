@@ -10,31 +10,51 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const hasCheckedAuth = useRef(false);
 
+  const clearAuthState = () => {
+    setUser(null);
+    localStorage.removeItem('etlawm_user');
+    localStorage.removeItem('etlawm_session_token');
+  };
+
   const checkAuth = async () => {
+    const storedToken = localStorage.getItem('etlawm_session_token');
+
+    // If there is no token at all, don't bother calling the server —
+    // the user is definitely not authenticated.
+    if (!storedToken) {
+      clearAuthState();
+      setLoading(false);
+      return;
+    }
+
     try {
-      const headers = {};
-      const storedToken = localStorage.getItem('etlawm_session_token');
-      if (storedToken) {
-        headers['Authorization'] = `Bearer ${storedToken}`;
-      }
       const response = await axios.get(`${API_URL}/api/auth/me`, {
         withCredentials: true,
-        headers
+        headers: { Authorization: `Bearer ${storedToken}` },
       });
       setUser(response.data);
       localStorage.setItem('etlawm_user', JSON.stringify(response.data));
     } catch (error) {
-      // If API fails, check localStorage as fallback
-      const storedUser = localStorage.getItem('etlawm_user');
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          setUser(null);
-          localStorage.removeItem('etlawm_user');
-        }
+      const status = error.response?.status;
+
+      if (status === 401 || status === 403) {
+        // Server explicitly rejected the session — it is invalid or expired.
+        // Clear everything so the user is shown as logged out.
+        console.warn('[Auth] Session rejected by server (status', status, '). Clearing auth state.');
+        clearAuthState();
       } else {
-        setUser(null);
+        // Network error or server unavailable — fall back to cached user
+        // so the UI doesn't flicker to "logged out" on a bad network.
+        const storedUser = localStorage.getItem('etlawm_user');
+        if (storedUser) {
+          try {
+            setUser(JSON.parse(storedUser));
+          } catch {
+            clearAuthState();
+          }
+        } else {
+          clearAuthState();
+        }
       }
     } finally {
       setLoading(false);
@@ -43,7 +63,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // CRITICAL: If returning from OAuth callback, skip the /me check.
-    // AuthCallback will exchange the session_id and establish the session first.
     if (window.location.hash?.includes('session_id=')) {
       setLoading(false);
       return;
@@ -53,6 +72,7 @@ export const AuthProvider = ({ children }) => {
       hasCheckedAuth.current = true;
       checkAuth();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (email, password) => {
@@ -61,11 +81,11 @@ export const AuthProvider = ({ children }) => {
       { email, password },
       { withCredentials: true }
     );
-    setUser(response.data.user);
-    localStorage.setItem('etlawm_user', JSON.stringify(response.data.user));
-    // Store session token for Authorization header fallback (cross-origin cookie fix)
-    if (response.data.session_token) {
-      localStorage.setItem('etlawm_session_token', response.data.session_token);
+    const { user: loggedInUser, session_token } = response.data;
+    setUser(loggedInUser);
+    localStorage.setItem('etlawm_user', JSON.stringify(loggedInUser));
+    if (session_token) {
+      localStorage.setItem('etlawm_session_token', session_token);
     }
     return response.data;
   };
@@ -75,30 +95,30 @@ export const AuthProvider = ({ children }) => {
       `${API_URL}/api/auth/register`,
       { email, password, name }
     );
-    // After registration, log them in
+    // After registration, log them in to get a session token
     await login(email, password);
     return response.data;
   };
 
   const logout = async () => {
-    const headers = {};
     const storedToken = localStorage.getItem('etlawm_session_token');
-    if (storedToken) {
-      headers['Authorization'] = `Bearer ${storedToken}`;
-    }
     try {
-      await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true, headers });
+      await axios.post(
+        `${API_URL}/api/auth/logout`,
+        {},
+        {
+          withCredentials: true,
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        }
+      );
     } catch (e) {
-      // Still clear local state even if server logout fails
-      console.warn('Logout API call failed:', e.message);
+      console.warn('Logout API call failed (clearing local state anyway):', e.message);
     }
-    setUser(null);
-    localStorage.removeItem('etlawm_user');
-    localStorage.removeItem('etlawm_session_token');
+    clearAuthState();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, clearAuthState }}>
       {children}
     </AuthContext.Provider>
   );
