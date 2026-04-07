@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart, Plus } from 'lucide-react';
+import { Heart, ShoppingCart, Plus, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
