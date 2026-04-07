@@ -18,7 +18,19 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/shop';
+  // Support both react-router state and URL ?from= param (used by 401 interceptor)
+  const searchParams = new URLSearchParams(location.search);
+  const fromParam = searchParams.get('from');
+  const isExpired = searchParams.get('expired') === '1';
+  const from = fromParam || location.state?.from?.pathname || '/shop';
+
+  // Show session expiry notice once on mount
+  React.useEffect(() => {
+    if (isExpired) {
+      toast.error('Your session has expired. Please log in again.');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
