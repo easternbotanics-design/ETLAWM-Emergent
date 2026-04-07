@@ -1,0 +1,181 @@
+/* --- ETLAWM REPLICA CSS --- */
+
+:root {
+    --bg-color: #F5F5F7;
+    --surface-color: #FFFFFF;
+    --text-primary: #1D1D1F;
+    --text-secondary: #86868B;
+    --accent-color: #D2B48C;
+    --radius: 24px;
+    --nav-height: 60px;
+    --transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    --section-padding-desktop: 120px;
+    --section-padding-mobile: 60px;
+}
+
+/* Glass Effect */
+.glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Marquee Strip */
+.marquee-container {
+    background-color: var(--text-primary);
+    color: var(--surface-color);
+    padding: 10px 0;
+    overflow: hidden;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    position: relative;
+    z-index: 1002;
+}
+
+.marquee-track {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+    width: max-content;
+    animation: marquee-scroll 20s linear infinite;
+    padding-left: 20px;
+    height: 100%;
+}
+
+@keyframes marquee-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-33.33%); }
+}
+
+@keyframes animate-marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+    animation: animate-marquee 30s linear infinite;
+    display: flex;
+    width: max-content;
+}
+
+/* Section visibility for JS animations */
+.section-replica {
+    padding: var(--section-padding-desktop) 0;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.section-replica.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Hero Carousel */
+.hero-carousel-section {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    overflow: hidden;
+    background-color: #F5F5F7;
+}
+
+.carousel-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.6s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-size: cover;
+    background-position: center;
+}
+
+.carousel-slide.active {
+    opacity: 1;
+    z-index: 1;
+}
+
+/* Stats Section */
+.stats-section {
+    background-color: #FFFFFF;
+    overflow: hidden;
+    padding: 100px 0;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 450px 1fr;
+    gap: 40px;
+    align-items: center;
+}
+
+.stat-number {
+    font-size: 6rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #1d1d1f 0%, #434343 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Science Section */
+.science-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+}
+
+.science-card {
+    background: #FFFFFF;
+    padding: 40px;
+    border-radius: 32px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    transition: transform 0.3s ease;
+}
+
+/* Scroll Progress Bar */
+.scroll-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-color) 0%, #B8986C 100%);
+    z-index: 10000;
+    transition: width 0.1s ease-out;
+}
+
+/* Lenis Smooth Scroll Setup */
+html.lenis {
+    height: auto;
+}
+
+.lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+}
+
+/* Footer Dark */
+.footer-dark {
+    background-color: #111111;
+    color: #FFFFFF;
+    padding: 80px 0 40px;
+}
+
+.footer-logo-large {
+    font-size: 5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+/* Additional utility classes */
+.font-inter { font-family: 'Inter', sans-serif; }
+.text-gold { color: var(--accent-color); }
+.bg-offwhite { background-color: #F5F5F7; }

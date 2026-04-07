@@ -17,6 +17,19 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+// Helper to build request config with Authorization header fallback
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const storedToken = localStorage.getItem('etlawm_session_token');
+  if (storedToken) {
+    config.headers = {
+      ...(config.headers || {}),
+      Authorization: `Bearer ${storedToken}`,
+    };
+  }
+  return config;
+};
+
 const AdminProductForm = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
@@ -151,14 +164,10 @@ const AdminProductForm = () => {
       };
 
       if (isEdit) {
-        await axios.put(`${API_URL}/api/products/${productId}`, data, {
-          withCredentials: true
-        });
+        await axios.put(`${API_URL}/api/products/${productId}`, data, getAuthConfig());
         toast.success('Product updated successfully');
       } else {
-        await axios.post(`${API_URL}/api/products`, data, {
-          withCredentials: true
-        });
+        await axios.post(`${API_URL}/api/products`, data, getAuthConfig());
         toast.success('Product created successfully');
       }
       navigate('/admin/products');

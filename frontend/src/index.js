@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import "@/lib/axiosSetup"; // Global axios interceptor — must be imported before any component
 import "@/index.css";
+import "@/replica.css";
 import App from "@/App";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));

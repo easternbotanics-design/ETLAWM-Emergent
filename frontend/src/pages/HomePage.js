@@ -1,30 +1,112 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowRight } from 'lucide-react';
-import ProductCard from '../components/ProductCard';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from '@studio-freight/lenis';
+import { ArrowRight, Star, CheckCircle, Package, Truck, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
+import ProductCard from '../components/ProductCard';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+gsap.registerPlugin(ScrollTrigger);
 
 const HomePage = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const mainRef = useRef(null);
+  const scrollProgressRef = useRef(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const heroSlides = [
+    {
+      title: "Etlawm Herbal Oil",
+      subtitle: "The ultimate solution for your hair and scalp health.",
+      image: "https://easternbotanics-design.github.io/Etlawm.com/assets/Running%20banner%20images/Gemini_Generated_Image_ajafi0ajafi0ajaf.png",
+      link: "/shop"
+    },
+    {
+      title: "Botanical Rituals",
+      subtitle: "Pure ingredients, centuries of herbal wisdom refined.",
+      image: "https://easternbotanics-design.github.io/Etlawm.com/assets/Running%20banner%20images/Gemini_Generated_Image_qhhnniqhhnniqhhn.png",
+      link: "/shop"
+    }
+  ];
 
   useEffect(() => {
+    // Initialize Lenis
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+    });
+
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+
+    // Initial Animations
+    const ctx = gsap.context(() => {
+      // Scroll Progress Bar
+      gsap.to(scrollProgressRef.current, {
+        scaleX: 1,
+        ease: "none",
+        scrollTrigger: {
+          trigger: "body",
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.3
+        }
+      });
+
+      // Section Fade-ups
+      gsap.utils.toArray('.section-replica').forEach((section) => {
+        gsap.fromTo(section, 
+          { y: 50, opacity: 0 },
+          { 
+            y: 0, 
+            opacity: 1, 
+            duration: 1, 
+            scrollTrigger: {
+              trigger: section,
+              start: "top 85%",
+              toggleActions: "play none none none"
+            }
+          }
+        );
+      });
+
+      // Stat numbers animation
+      gsap.utils.toArray('.stat-number').forEach((stat) => {
+        const val = parseInt(stat.innerText);
+        stat.innerText = '0%';
+        gsap.to(stat, {
+          innerText: val + '%',
+          duration: 2,
+          snap: { innerText: 1 },
+          scrollTrigger: {
+            trigger: stat,
+            start: "top 90%",
+            once: true
+          }
+        });
+      });
+    }, mainRef);
+
     fetchFeaturedProducts();
+
+    return () => {
+      lenis.destroy();
+      ctx.revert();
+    };
   }, []);
 
   const fetchFeaturedProducts = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/products?featured=true`);
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/products?featured=true`);
       if (Array.isArray(response.data)) {
-        setFeaturedProducts(response.data.slice(0, 6));
-      } else {
-        console.error('Invalid response format:', response.data);
+        setFeaturedProducts(response.data.slice(0, 4));
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
@@ -33,127 +115,190 @@ const HomePage = () => {
     }
   };
 
-  const handleAddToWishlist = async (productId) => {
-    if (!user) {
-      toast.error('Please login to add items to wishlist');
-      return;
-    }
-
-    try {
-      await axios.post(
-        `${API_URL}/api/wishlist/${productId}`,
-        {},
-        { withCredentials: true }
-      );
-      toast.success('Added to wishlist');
-    } catch (error) {
-      toast.error('Failed to add to wishlist');
-    }
-  };
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
 
   return (
-    <div className="min-h-screen bg-botanical-light" data-testid="home-page">
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden" data-testid="hero-section">
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1608248597279-f99d160bfcbc"
-            alt="Botanical Hero"
-            className="w-full h-full object-cover scale-105 animate-fade-in"
-          />
-          <div className="absolute inset-0 bg-black/10"></div>
-        </div>
+    <div ref={mainRef} className="font-inter">
+      {/* Scroll Progress */}
+      <div ref={scrollProgressRef} className="scroll-progress-bar" style={{ transformOrigin: "left", transform: "scaleX(0)" }}></div>
 
-        <div className="relative z-10 text-center text-primary px-6 animate-slide-up">
-          <span className="text-[10px] uppercase tracking-[0.4em] mb-6 block font-semibold text-primary/60">The New Standard of Care</span>
-          <h1 className="font-display text-5xl md:text-8xl mb-10 tracking-tighter" data-testid="hero-title">
-            Herbal Rituals
-          </h1>
-          <p className="text-[15px] md:text-[17px] mb-14 tracking-tight max-w-xl mx-auto font-light leading-relaxed opacity-80" data-testid="hero-subtitle">
-            Minimalist herbal oils and potent face serums crafted from nature's most effective botanicals. Pure, honest, and transformative.
-          </p>
-          <Link to="/shop">
-            <Button
-              className="bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-500 rounded-px px-14 py-7 uppercase tracking-[0.2em] text-[10px] font-semibold border-none"
-              data-testid="shop-now-button"
+      {/* Marquee */}
+      <div className="marquee-container">
+        <div className="marquee-track">
+          {[1, 2, 3].map(i => (
+            <React.Fragment key={i}>
+              <span>FREE SHIPPING ON ALL ORDERS ABOVE ₹999</span>
+              <span className="dot">•</span>
+              <span>100% ORGANIC HERBAL BLEND</span>
+              <span className="dot">•</span>
+              <span>DERMATOLOGICALLY TESTED</span>
+              <span className="dot">•</span>
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Hero Carousel */}
+      <section className="hero-carousel-section">
+        <div className="carousel-container">
+          {heroSlides.map((slide, index) => (
+            <div 
+              key={index} 
+              className={`carousel-slide ${index === currentSlide ? 'active' : ''}`}
+              style={{ backgroundImage: `url(${slide.image})` }}
             >
-              Explore Collection
-              <ArrowRight className="ml-3 w-4 h-4" />
-            </Button>
-          </Link>
+              <div className="absolute inset-0 bg-black/20"></div>
+              <div className="container relative z-10 text-white">
+                <div className="max-w-2xl slide-content">
+                  <h1 className="text-6xl md:text-8xl font-bold mb-6 tracking-tight leading-none animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                    {slide.title}
+                  </h1>
+                  <p className="text-xl md:text-2xl mb-10 opacity-90 font-light animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200">
+                    {slide.subtitle}
+                  </p>
+                  <Link to={slide.link}>
+                    <Button className="bg-white text-black hover:bg-white/90 rounded-full px-10 py-6 text-lg font-semibold animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-400">
+                      Shop Collection <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
+          <button onClick={prevSlide} className="carousel-btn prev" aria-label="Previous slide">
+            <ChevronLeft />
+          </button>
+          <button onClick={nextSlide} className="carousel-btn next" aria-label="Next slide">
+            <ChevronRight />
+          </button>
+          <div className="carousel-dots">
+            {heroSlides.map((_, i) => (
+              <button 
+                key={i} 
+                className={`dot ${i === currentSlide ? 'active' : ''}`}
+                onClick={() => setCurrentSlide(i)}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Science & Ingredients */}
+      <section className="section-replica science-section bg-offwhite py-24">
+        <div className="container">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">The Science of Etlawm</h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">Combining traditional botanical knowledge with modern hair science for visible results.</p>
+          </div>
+          <div className="science-grid">
+            <div className="science-card">
+              <div className="mb-6"><Package className="w-10 h-10" /></div>
+              <h3 className="text-xl font-bold mb-3">Pure Extraction</h3>
+              <p className="text-gray-600">Our cold-press extraction process preserves the molecular integrity of every herb.</p>
+            </div>
+            <div className="science-card">
+              <div className="mb-6"><Star className="w-10 h-10" /></div>
+              <h3 className="text-xl font-bold mb-3">Premium Quality</h3>
+              <p className="text-gray-600">Sourced from sustainably managed organic farms at the peak of their potency.</p>
+            </div>
+            <div className="science-card">
+              <div className="mb-6"><ShieldCheck className="w-10 h-10" /></div>
+              <h3 className="text-xl font-bold mb-3">Clinically Proven</h3>
+              <p className="text-gray-600">Formulated to reduce hair fall and improve scalp health within 4 weeks.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section with Parallax Wrapper */}
+      <section className="stats-section section-replica py-32">
+        <div className="container">
+          <div className="stats-grid">
+            <div className="space-y-24 text-right">
+              <div>
+                <div className="stat-number">92%</div>
+                <h4 className="text-2xl font-bold mt-2">Denser Hair</h4>
+                <p className="text-gray-500 mt-2">Users reported significant visible improvement in hair density.</p>
+              </div>
+              <div>
+                <div className="stat-number">88%</div>
+                <h4 className="text-2xl font-bold mt-2">Scalp Health</h4>
+                <p className="text-gray-500 mt-2">Reduction in dryness and irritation within the first month.</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-center items-center h-[600px] overflow-hidden">
+               <img 
+                src="https://easternbotanics-design.github.io/Etlawm.com/assets/ProductImages/Gemini_Generated_Image_lhdncylhdncylhdn.png" 
+                alt="Product" 
+                className="max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-700"
+               />
+            </div>
+
+            <div className="space-y-24">
+              <div>
+                <div className="stat-number">100%</div>
+                <h4 className="text-2xl font-bold mt-2">Natural</h4>
+                <p className="text-gray-500 mt-2">No synthetic fragrances, mineral oils, or harmful chemicals.</p>
+              </div>
+              <div>
+                <div className="stat-number">45k+</div>
+                <h4 className="text-2xl font-bold mt-2">Happy Users</h4>
+                <p className="text-gray-500 mt-2">Trusted by hair enthusiasts across the country.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Featured Products */}
-      <section className="py-32 md:py-48 px-6 md:px-12 max-w-7xl mx-auto" data-testid="featured-section">
-        <div className="text-center mb-24">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-accent/80 font-bold mb-4 block">Essentials</span>
-          <h2 className="font-display text-4xl md:text-5xl tracking-tighter" data-testid="featured-title">
-             The Botanical Edit
-          </h2>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-20">
-            <div className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <section className="section-replica py-24 bg-white">
+        <div className="container">
+          <div className="flex justify-between items-end mb-16">
+            <div>
+              <h2 className="text-4xl font-bold tracking-tight mb-2">Featured Products</h2>
+              <p className="text-gray-500 text-lg">Our most loved essentials for your daily ritual.</p>
+            </div>
+            <Link to="/shop">
+              <Button variant="outline" className="rounded-full px-8 py-6 uppercase tracking-wider text-xs font-bold border-black/10">
+                View All Essentials
+              </Button>
+            </Link>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-24" data-testid="featured-products-grid">
-            {featuredProducts.map((product) => (
-              <ProductCard
-                key={product.product_id}
-                product={product}
-                onAddToWishlist={handleAddToWishlist}
-              />
-            ))}
-          </div>
-        )}
 
-        <div className="text-center mt-24">
-          <Link to="/shop">
-            <Button
-              variant="outline"
-              className="border-primary/20 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-500 rounded-px px-14 py-7 uppercase tracking-[0.2em] text-[10px] font-semibold"
-              data-testid="view-all-button"
-            >
-              View Full Apothecary
-            </Button>
-          </Link>
+          {loading ? (
+            <div className="grid grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="aspect-[3/4] bg-gray-100 rounded-2xl animate-pulse"></div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.product_id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Brand Story */}
-      <section className="py-32 md:py-48 bg-secondary/30" data-testid="brand-story-section">
-        <div className="max-w-7xl mx-auto px-6 md:px-12">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-            <div className="relative group">
-              <img
-                src="https://images.unsplash.com/photo-1556228720-195a672e8a03"
-                alt="Herbal Process"
-                className="w-full h-[650px] object-cover grayscale-[0.2] transition-all duration-700 group-hover:grayscale-0"
-              />
-              <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-botanical-sage/20 -z-10 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-700"></div>
-            </div>
-            <div className="space-y-10">
-              <span className="text-[10px] uppercase tracking-[0.3em] text-accent font-bold">Our Philosophy</span>
-              <h2 className="font-display text-4xl md:text-6xl tracking-tighter leading-[1.1]">
-                Less is more, <br/> pure is better.
+      {/* Brand Ethos */}
+      <section className="section-replica py-32 bg-black text-white">
+        <div className="container">
+          <div className="grid md:grid-cols-2 gap-20 items-center">
+            <div>
+              <h2 className="text-5xl md:text-7xl font-bold tracking-tighter leading-tight mb-10">
+                Less is more. <br />
+                <span className="text-gray-500">Pure is better.</span>
               </h2>
-              <div className="space-y-6 text-[15px] leading-relaxed text-primary/80 font-light">
-                <p>
-                  ETLAWM was born from a desire to return to the essentials. In a world of complex ingredients, we find power in simplicity. Our herbal oils and serums are formulated with singular focus: to nourish without compromise.
-                </p>
-                <p>
-                  Every drop of our ETLAWM Herbal Oil is infused with centuries of botanical wisdom, refined for the modern minimalist lifestyle. No fillers, no synthetic fragrances—just pure, potent nature.
-                </p>
+              <div className="space-y-6 text-xl text-gray-400 font-light leading-relaxed">
+                <p>Etlawm was founded on a simple belief: nature provides everything we need. No fillers, no complex chemical strings—just the raw power of earth's finest botanicals.</p>
+                <p>Every bottle is a testament to our commitment to simplicity and effectiveness. We don't follow trends; we follow results.</p>
               </div>
-              <Link to="/shop">
-                <Button
-                  className="bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-500 rounded-px px-10 py-6 uppercase tracking-[0.2em] text-[10px] font-semibold"
-                >
-                  Our Origins
-                </Button>
-              </Link>
+            </div>
+            <div className="footer-logo-large opacity-10 select-none pointer-events-none">
+              ETLAWM.
             </div>
           </div>
         </div>
