@@ -102,18 +102,25 @@ const HomePage = () => {
         });
       });
 
-      // Bottle Parallax
+      // Bottle Parallax — 0.6x speed ratio (Antigravity float effect)
       if (bottleRef.current) {
-        gsap.to(bottleRef.current, {
-          y: 180,
-          ease: "none",
-          scrollTrigger: {
-            trigger: ".stats-section",
-            start: "top bottom",
-            end: "bottom top",
-            scrub: true
+        gsap.fromTo(bottleRef.current,
+          { y: 0 },
+          {
+            y: () => {
+              const section = document.querySelector('.stats-section');
+              return section ? section.offsetHeight * 0.6 : 300;
+            },
+            ease: 'none',
+            scrollTrigger: {
+              trigger: '.stats-section',
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: 0,          // linear — no lag, directly mapped to scroll
+              invalidateOnRefresh: true  // recalculate on resize
+            }
           }
-        });
+        );
       }
     }, mainRef);
 
