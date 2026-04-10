@@ -126,20 +126,30 @@ const CheckoutPage = () => {
             await fetchCart();
             navigate(`/orders/${order.order_id}`);
           } catch (error) {
-            toast.error('Payment verification failed');
+            console.error('Payment verification error:', error);
+            toast.error(error.response?.data?.detail || 'Payment verification failed');
           }
         },
         prefill: { name: shippingData.name, contact: shippingData.phone },
         theme: { color: '#000000' }
       };
+
+      if (!window.Razorpay) {
+        toast.error('Payment gateway failed to load. Please check your internet or disable ad-blockers.');
+        setLoading(false);
+        return;
+      }
+
       const razorpay = new window.Razorpay(options);
       razorpay.open();
-      razorpay.on('payment.failed', function () {
-        toast.error('Payment failed. Please try again.');
+      razorpay.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error);
+        toast.error(`Payment failed: ${response.error.description}`);
       });
     } catch (error) {
       console.error('Checkout error:', error);
-      toast.error('Failed to process order');
+      const errorMessage = error.response?.data?.detail || 'Failed to process order';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

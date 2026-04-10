@@ -50,6 +50,7 @@ const AdminProductForm = () => {
     unit: ''
   });
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [categories, setCategories] = useState([]);
   const [errors, setErrors] = useState({});
@@ -97,15 +98,17 @@ const AdminProductForm = () => {
 
   const validateForm = useCallback(() => {
     const newErrors = {};
-    
+
     if (!formData.name.trim()) newErrors.name = 'Product name is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
-    
+
     const category = formData.category === '__custom__' ? formData.customCategory : formData.category;
     if (!category || !category.trim()) newErrors.category = 'Category is required';
-    
-    if (!formData.base_price || parseFloat(formData.base_price) < 0) {
-      newErrors.base_price = 'Valid base price is required';
+
+    // Fix: treat empty string / undefined as invalid, but allow 0 as a valid price
+    const priceVal = formData.base_price;
+    if (priceVal === '' || priceVal === undefined || priceVal === null || parseFloat(priceVal) < 0) {
+      newErrors.base_price = 'Valid base price is required (0 or more)';
     }
 
     // Validate variants
@@ -125,17 +128,41 @@ const AdminProductForm = () => {
     });
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   }, [formData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      toast.error('Please fix the validation errors');
+
+    // Prevent double-submit on rapid clicks
+    if (submitting) return;
+    setSubmitting(true);
+
+    const newErrors = validateForm();
+    if (Object.keys(newErrors).length > 0) {
+      // Build a human-readable list of which fields failed
+      const fieldLabels = {
+        name: 'Product Name',
+        description: 'Description',
+        category: 'Category',
+        base_price: 'Base Price',
+      };
+      const failingFields = Object.keys(newErrors)
+        .map(k => fieldLabels[k] || k.replace(/_/g, ' '))
+        .filter((v, i, a) => a.indexOf(v) === i) // deduplicate
+        .join(', ');
+      toast.error(`Fix the following fields: ${failingFields}`);
+
+      // Scroll to the first invalid field
+      const firstErrorKey = Object.keys(newErrors)[0];
+      const el = document.getElementById(firstErrorKey) ||
+                 document.querySelector(`[name="${firstErrorKey}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      setSubmitting(false);
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -176,6 +203,7 @@ const AdminProductForm = () => {
       toast.error(errorMsg);
     } finally {
       setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -626,10 +654,10 @@ const AdminProductForm = () => {
           <div className="flex gap-4">
             <Button
               type="submit"
-              disabled={loading}
-              className="flex-1 bg-black text-white hover:bg-white hover:text-black hover:border-black border border-transparent transition-all duration-300 rounded-none px-8 py-6 uppercase tracking-widest text-xs"
+              disabled={loading || submitting}
+              className="flex-1 bg-black text-white hover:bg-white hover:text-black hover:border-black border border-transparent transition-all duration-300 rounded-none px-8 py-6 uppercase tracking-widest text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
+              {loading || submitting ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
             </Button>
             <Button
               type="button"

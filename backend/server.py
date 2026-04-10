@@ -761,6 +761,16 @@ async def create_order(order_data: OrderCreate, current_user: User = Depends(get
                     status_code=400,
                     detail=f"Insufficient stock for {product.get('name', item.product_id)} ({variant.get('name', item.variant_id)}): only {variant['stock']} available"
                 )
+        else:
+            product = await db.products.find_one({"product_id": item.product_id}, {"_id": 0, "name": 1, "stock": 1})
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Product not found: {item.product_id}")
+            # Only check stock if the product has a direct stock field (some products might only use variants)
+            if "stock" in product and product["stock"] < item.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for {product['name']}: only {product['stock']} available"
+                )
 
     # Create Razorpay order
     try:

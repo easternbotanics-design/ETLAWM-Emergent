@@ -206,7 +206,12 @@ const ProductDetailPage = () => {
           <div className="lg:col-span-7 space-y-6">
             <div className="aspect-[3/4] overflow-hidden bg-[#F5F5F7] rounded-3xl group relative">
                <img
-                src={product.images?.[mainImageIndex] || 'https://images.unsplash.com/photo-1617416430402-8c131ef45227'}
+                src={
+                  (product.name?.toLowerCase().includes('oil') && (product.name?.toLowerCase().includes('herbal') || product.name?.toLowerCase().includes('hair'))) ||
+                  (product.images?.[mainImageIndex]?.includes('Gemini_Generated_Image'))
+                  ? '/assets/etlawm-hair-oil.png' 
+                  : (product.images?.[mainImageIndex] || '/assets/etlawm-hair-oil.png')
+                }
                 alt={product.name}
                 className="w-full h-full object-cover"
                />
