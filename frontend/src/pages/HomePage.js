@@ -101,36 +101,44 @@ const HomePage = () => {
           scrollTrigger: { trigger: stat, start: "top 90%", once: true }
         });
       });
-
-      // Bottle Parallax — 0.6x speed ratio (Antigravity float effect)
-      if (bottleRef.current) {
-        gsap.fromTo(bottleRef.current,
-          { y: 0 },
-          {
-            y: () => {
-              const section = document.querySelector('.stats-section');
-              return section ? section.offsetHeight * 0.6 : 300;
-            },
-            ease: 'none',
-            scrollTrigger: {
-              trigger: '.stats-section',
-              start: 'top bottom',
-              end: 'bottom top',
-              scrub: 0,          // linear — no lag, directly mapped to scroll
-              invalidateOnRefresh: true  // recalculate on resize
-            }
-          }
-        );
-      }
     }, mainRef);
+
+    // ── Bottle Antigravity: RAF + lerp ──────────────────────────────────
+    // y: 100 (section enters) → y: -100 (section exits), lerped for silky feel
+    const lerp = (a, b, t) => a + (b - a) * t;
+    let currentY = 100;
+    let targetY  = 100;
+    let bottleRaf;
+
+    const tickBottle = () => {
+      const bottle  = bottleRef.current;
+      const section = document.querySelector('.stats-section');
+      if (bottle && section) {
+        const rect     = section.getBoundingClientRect();
+        const vh       = window.innerHeight;
+        // progress 0 → section top at viewport bottom; 1 → section bottom at viewport top
+        const progress = 1 - rect.bottom / (vh + rect.height);
+        const clamped  = Math.max(0, Math.min(1, progress));
+        targetY = 100 + clamped * -200;           // maps 0–1 → 100 → -100
+
+        currentY = lerp(currentY, targetY, 0.08); // 0.08 = smooth but responsive
+        bottle.style.transform = `translateY(${currentY.toFixed(2)}px)`;
+        bottle.style.willChange = 'transform';
+      }
+      bottleRaf = requestAnimationFrame(tickBottle);
+    };
+    bottleRaf = requestAnimationFrame(tickBottle);
+    // ─────────────────────────────────────────────────────────────────────
 
     fetchFeaturedProducts();
 
     return () => {
       lenis.destroy();
       ctx.revert();
+      cancelAnimationFrame(bottleRaf);
     };
   }, []);
+
 
   const fetchFeaturedProducts = async () => {
     try {
