@@ -229,8 +229,10 @@ const AdminProductForm = () => {
       try {
         const fd = new FormData();
         fd.append('file', file);
-        // Build headers with Authorization fallback for cross-origin cookie issues
-        const uploadHeaders = { 'Content-Type': 'multipart/form-data' };
+        // Do NOT manually set Content-Type — axios sets it automatically with the
+        // correct multipart boundary when it detects a FormData body. Overriding it
+        // strips the boundary and breaks server-side multipart parsing.
+        const uploadHeaders = {};
         const sessionToken = localStorage.getItem('etlawm_session_token');
         if (sessionToken) {
           uploadHeaders['Authorization'] = `Bearer ${sessionToken}`;

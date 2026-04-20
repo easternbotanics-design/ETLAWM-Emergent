@@ -128,8 +128,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=os.environ.get('CORS_ORIGINS', 'https://etlawm.com,https://www.etlawm.com,https://etlawm-emergent.vercel.app,http://localhost:3000').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 api_router = APIRouter(prefix="/api")
@@ -152,6 +152,24 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: str
+
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain at least one digit')
+        if not any(c.isalpha() for c in v):
+            raise ValueError('Password must contain at least one letter')
+        return v
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if len(v.strip()) < 2:
+            raise ValueError('Name must be at least 2 characters')
+        return v.strip()
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -267,6 +285,20 @@ class OrderCreate(BaseModel):
     total_amount: float
     shipping_address: ShippingAddress
 
+    @field_validator('total_amount')
+    @classmethod
+    def validate_total_amount(cls, v):
+        if v <= 0:
+            raise ValueError('Total amount must be greater than zero')
+        return round(v, 2)
+
+    @field_validator('items')
+    @classmethod
+    def validate_items(cls, v):
+        if not v:
+            raise ValueError('Order must contain at least one item')
+        return v
+
 # ==================== PAYMENT VERIFICATION MODEL ====================
 class PaymentVerification(BaseModel):
     payment_id: str
@@ -287,6 +319,23 @@ class ReviewCreate(BaseModel):
     product_id: str
     rating: int
     comment: str
+
+    @field_validator('rating')
+    @classmethod
+    def validate_rating(cls, v):
+        if not 1 <= v <= 5:
+            raise ValueError('Rating must be between 1 and 5')
+        return v
+
+    @field_validator('comment')
+    @classmethod
+    def validate_comment(cls, v):
+        v = v.strip()
+        if len(v) < 5:
+            raise ValueError('Comment must be at least 5 characters')
+        if len(v) > 2000:
+            raise ValueError('Comment must not exceed 2000 characters')
+        return v
 
 # ==================== WISHLIST MODELS ====================
 class Wishlist(BaseModel):
@@ -407,10 +456,10 @@ async def login(login_data: UserLogin, response: Response):
         max_age=7 * 24 * 60 * 60
     )
     
-    # Return user
+    # Return user (session_token is set via HTTPOnly cookie — not returned in body)
     user.pop("password")
     user["created_at"] = datetime.fromisoformat(user["created_at"])
-    return {"user": User(**user), "session_token": session_token}
+    return {"user": User(**user)}
 
 class GoogleTokenData(BaseModel):
     access_token: str
@@ -495,7 +544,8 @@ async def google_auth_session(token_data: GoogleTokenData, response: Response):
             user["created_at"] = datetime.now(timezone.utc)
             
     print(f"✅ GOOGLE AUTH SESSION COMPLETED")
-    return {"user": User(**user), "session_token": session_token}
+    # session_token is set via HTTPOnly cookie — not returned in body
+    return {"user": User(**user)}
 
 @api_router.get("/auth/me", response_model=User)
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -607,15 +657,22 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
         raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
     
     try:
-        # Upload to Cloudinary
+        # Upload to Cloudinary — run in a thread executor so the sync SDK call
+        # does not block the async event loop.
+        import functools
         logger.info(f"Uploading {file.filename} to Cloudinary folder 'etlawm/products'...")
-        result = cloudinary.uploader.upload(
-            contents,
-            folder="etlawm/products",
-            resource_type="auto",
-            api_key=cloudinary_api_key,
-            api_secret=cloudinary_api_secret,
-            cloud_name=cloudinary_cloud_name
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            functools.partial(
+                cloudinary.uploader.upload,
+                contents,
+                folder="etlawm/products",
+                resource_type="auto",
+                api_key=cloudinary_api_key,
+                api_secret=cloudinary_api_secret,
+                cloud_name=cloudinary_cloud_name
+            )
         )
         logger.info(f"Upload successful: {result.get('secure_url')}")
         return {
@@ -841,6 +898,12 @@ async def verify_payment(order_id: str, data: PaymentVerification, current_user:
                 {"product_id": item["product_id"], "variants.variant_id": item["variant_id"]},
                 {"$inc": {"variants.$.stock": -item["quantity"]}}
             )
+        else:
+            # Deduct stock for products without variants
+            await db.products.update_one(
+                {"product_id": item["product_id"]},
+                {"$inc": {"stock": -item["quantity"]}}
+            )
     
     # Clear cart
     await db.carts.update_one(
@@ -963,7 +1026,7 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
     order = await db.orders.find_one({
         "user_id": current_user.user_id,
         "items.product_id": review_data.product_id,
-        "status": {"$in": [OrderStatus.DELIVERED, OrderStatus.CONFIRMED]}
+        "status": OrderStatus.DELIVERED
     })
     
     if not order:
