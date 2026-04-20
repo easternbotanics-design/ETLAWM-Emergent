@@ -15,17 +15,23 @@ const ProductCard = ({ product, onAddToWishlist }) => {
     : product.base_price;
 
   const pName = product.name?.toLowerCase() || '';
-  const isHairOil = pName.includes('oil') && (pName.includes('herbal') || pName.includes('hair') || pName.includes('nourishing') || pName.includes('etlawm'));
-  
+
+  // Only fall back to the local PNG for products that have no real image
+  // or have a stale AI-generated placeholder.
   const hasGeminiImage = product.images?.[0]?.includes('Gemini_Generated_Image');
+  const hasRealImage   = product.images && product.images.length > 0 && !hasGeminiImage;
 
-  const primaryImage = (isHairOil || hasGeminiImage)
-    ? '/assets/etlawm-hair-oil.png'
-    : (product.images && product.images.length > 0 ? product.images[0] : '/assets/etlawm-hair-oil.png');
+  const primaryImage = hasRealImage
+    ? product.images[0]
+    : '/assets/etlawm-hair-oil.png';
 
-  const secondaryImage = product.images && product.images.length > 1
+  const secondaryImage = product.images && product.images.length > 1 && !hasGeminiImage
     ? product.images[1]
     : null;
+
+  // Local PNG assets have transparent/white backgrounds — use multiply + padding.
+  // External (Cloudinary/Amazon) JPGs need cover + no blend mode.
+  const isLocalPng = primaryImage.startsWith('/assets/');
 
   const totalStock = product.variants && product.variants.length > 0
     ? product.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
@@ -89,15 +95,14 @@ const ProductCard = ({ product, onAddToWishlist }) => {
           <img
             src={primaryImage}
             alt={product.name}
-            className={`w-full h-full object-contain transition-all duration-700 ease-out ${
+            className={`w-full h-full transition-all duration-700 ease-out ${
+              isLocalPng ? 'object-contain' : 'object-cover'
+            } ${
               secondaryImage
                 ? 'group-hover:opacity-0'
                 : 'group-hover:scale-[1.04]'
             }`}
-            style={{ 
-              mixBlendMode: 'multiply',
-              padding: '1.5rem'
-            }}
+            style={isLocalPng ? { mixBlendMode: 'multiply', padding: '1.5rem' } : {}}
             data-testid="product-image"
           />
 
