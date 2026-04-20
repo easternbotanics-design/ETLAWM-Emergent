@@ -659,6 +659,10 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
     try:
         # Upload to Cloudinary — run in a thread executor so the sync SDK call
         # does not block the async event loop.
+        # NOTE: do NOT pass api_key/api_secret/cloud_name as kwargs here —
+        # they are already set globally via cloudinary.config() at startup.
+        # Passing them again as upload() kwargs corrupts the signing context
+        # and produces an "Invalid Signature" error.
         import functools
         logger.info(f"Uploading {file.filename} to Cloudinary folder 'etlawm/products'...")
         loop = asyncio.get_event_loop()
@@ -668,10 +672,7 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
                 cloudinary.uploader.upload,
                 contents,
                 folder="etlawm/products",
-                resource_type="auto",
-                api_key=cloudinary_api_key,
-                api_secret=cloudinary_api_secret,
-                cloud_name=cloudinary_cloud_name
+                resource_type="image",
             )
         )
         logger.info(f"Upload successful: {result.get('secure_url')}")
@@ -684,19 +685,7 @@ async def upload_image(file: UploadFile = File(...), admin: User = Depends(get_a
         }
     except Exception as e:
         logger.error(f"Cloudinary upload error: {str(e)}")
-        # Include more detail in the response for debugging signature issues
-        error_msg = str(e)
-        if "Invalid Signature" in error_msg:
-            # Safely report identifying bits of credentials being used
-            debug_info = (
-                f"Cloud={cloudinary_cloud_name}, "
-                f"Key={cloudinary_api_key[:4]}...{cloudinary_api_key[-4:] if len(cloudinary_api_key) > 8 else '***'}, "
-                f"SecretLen={len(cloudinary_api_secret)}, "
-                f"SecretHex={hashlib.md5(cloudinary_api_secret.encode()).hexdigest()[:8]} (MD5 hash head for comparison), "
-                f"Env='Render/Live'"
-            )
-            error_msg += f" (Debug: {debug_info})"
-        return JSONResponse(status_code=500, content={"detail": f"Image upload failed: {error_msg}"})
+        return JSONResponse(status_code=500, content={"detail": f"Image upload failed: {str(e)}"})
 
 @api_router.delete("/upload/image")
 async def delete_image(public_id: str, admin: User = Depends(get_admin_user)):
