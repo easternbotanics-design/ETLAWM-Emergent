@@ -120,6 +120,19 @@ async def seed_products():
         },
         {
             "product_id": f"prod_{uuid.uuid4().hex[:12]}",
+            "name": "ETLAWM DE - PIGMENTATION CREAM",
+            "description": "Advanced Multi-active Brightening Formula with Tranexamic Acid 3% and Niacinamide 3%. Brightens dull skin, reduces pigmentation, boosts natural glow, and improves skin clarity and luminosity. Supports reduction in the appearance of discoloration and improves skin hydration and barrier comfort. Suitable for daily skincare routine with dermatologically inspired formulation. No Paraben, No Sulphate, No Cruelty. Suitable for all skin types.\n\nIngredients: Cetyl Alcohol, Glycerin, Tranexamic Acid, Niacinamide, Hyaluronic Acid, Ceramides Complex, Arbutin, Aluminium Starch Octenylsuccinate, Propylene Glycol, Glyceryl Stearate & PEG-100 Stearate, Steareth-21, Isopropyl Palmitate, Steareth-2, Glycolic Acid, Butyrospermum Parkii., Water (and) Glycerin & Rumex Occidentalis Extract, Isoamyl Laurate, Kojic Dipalmitate, Allantoin, Glycyrrhiza Glabra (Licorice) Root Extract, Phenoxyethanol & Ethylhexylglycerin, Pentaerythrityl Tetra-di-t-butyl Hydroxyyhydrocinnamate, Fragrance, Sodium Metabisulphite, Acrylates/C10-30 Alkyl Acrylate Crosspolymer, Butylated Hydroxy Toluene, Disodium EDTA, Sodium Hydroxide, Purified Water.\n\nDirection for use: Apply daily on clean face and gently massage until fully absorbed. Caution: Discontinue use if signs of irritation or rash appear. Avoid contact with eyes. Store protected from light and moisture at a temperature not exceeding 30°C.",
+            "category": "Skincare",
+            "base_price": 1499.00,
+            "variants": [
+                {"variant_id": f"var_{uuid.uuid4().hex[:8]}", "name": "50ml", "price": 1499.00, "stock": 50, "sku": "ETLAWM-DPC-50"}
+            ],
+            "images": [],
+            "featured": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "product_id": f"prod_{uuid.uuid4().hex[:12]}",
             "name": "Nourishing Hair Oil",
             "description": "Lightweight hair oil infused with argan and jojoba oils. Adds shine and tames frizz without greasiness.",
             "category": "Haircare",
