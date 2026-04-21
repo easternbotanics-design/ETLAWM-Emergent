@@ -201,9 +201,12 @@
    ========================================= */
 .stats-section {
     background-color: #FAFAF8;
-    overflow: hidden;
-    padding: 120px 0;
+    /* overflow must NOT be hidden — it clips the bottle parallax travel */
+    overflow: visible;
+    padding: 140px 0;
     position: relative;
+    /* Clip only horizontally so the section doesn't grow wider */
+    clip-path: inset(0 0 0 0);
 }
 
 .stats-section::before {
@@ -232,14 +235,18 @@
 }
 
 .stat-number {
-    font-size: 5.5rem;
+    font-size: clamp(4.5rem, 7vw, 6.5rem);
     font-weight: 800;
     line-height: 1;
-    letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #1a1a1a 0%, #555 100%);
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #111111 0%, #444 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    /* Prevent layout shift while counting */
+    min-width: 3ch;
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
 }
 
 /* =========================================

@@ -86,56 +86,58 @@ const HomePage = () => {
         );
       });
 
-      // Stat numbers animation
-      gsap.utils.toArray('.stat-number').forEach((stat) => {
-        const original = stat.innerText;
-        const isPercent = original.includes('%');
-        const hasPlus = original.includes('+');
-        const val = parseInt(original);
-        stat.innerText = '0' + (isPercent ? '%' : hasPlus ? 'k+' : '');
-        gsap.to(stat, {
-          innerText: val + (isPercent ? '%' : hasPlus ? 'k+' : ''),
-          duration: 2.2,
-          ease: "power2.out",
-          snap: { innerText: 1 },
-          scrollTrigger: { trigger: stat, start: "top 90%", once: true }
+      // ── Counter animation ───────────────────────────────────────────────
+      // Use a proxy object so GSAP doesn't try to tween innerHTML directly —
+      // that breaks for mixed values like "45k+". We update textContent manually
+      // in onUpdate so every frame is correct.
+      gsap.utils.toArray('.stat-number').forEach((el) => {
+        const target = parseFloat(el.dataset.target);
+        const suffix = el.dataset.suffix || '';
+        el.textContent = '0' + suffix;
+
+        const proxy = { val: 0 };
+        gsap.to(proxy, {
+          val: target,
+          duration: 2.6,
+          ease: 'power3.out',
+          onUpdate() {
+            el.textContent = Math.round(proxy.val) + suffix;
+          },
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 82%',
+            once: true,
+          },
         });
       });
-    }, mainRef);
 
-    // ── Bottle Antigravity: RAF + lerp ──────────────────────────────────
-    // y: 100 (section enters) → y: -100 (section exits), lerped for silky feel
-    const lerp = (a, b, t) => a + (b - a) * t;
-    let currentY = 100;
-    let targetY  = 100;
-    let bottleRaf;
-
-    const tickBottle = () => {
-      const bottle  = bottleRef.current;
-      const section = document.querySelector('.stats-section');
-      if (bottle && section) {
-        const rect     = section.getBoundingClientRect();
-        const vh       = window.innerHeight;
-        // progress 0 → section top at viewport bottom; 1 → section bottom at viewport top
-        const progress = 1 - rect.bottom / (vh + rect.height);
-        const clamped  = Math.max(0, Math.min(1, progress));
-        targetY = 100 + clamped * -200;           // maps 0–1 → 100 → -100
-
-        currentY = lerp(currentY, targetY, 0.08); // 0.08 = smooth but responsive
-        bottle.style.transform = `translateY(${currentY.toFixed(2)}px)`;
-        bottle.style.willChange = 'transform';
+      // ── Bottle parallax via ScrollTrigger scrub ──────────────────────────
+      // Bottle rises from +180px (section entering viewport bottom) to
+      // -180px (section leaving viewport top). scrub:1.4 adds silky lag.
+      if (bottleRef.current) {
+        gsap.fromTo(
+          bottleRef.current,
+          { y: 180 },
+          {
+            y: -180,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: '.stats-section',
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: 1.4,
+            },
+          }
+        );
       }
-      bottleRaf = requestAnimationFrame(tickBottle);
-    };
-    bottleRaf = requestAnimationFrame(tickBottle);
-    // ─────────────────────────────────────────────────────────────────────
+      // ─────────────────────────────────────────────────────────────────────
+    }, mainRef);
 
     fetchFeaturedProducts();
 
     return () => {
       lenis.destroy();
       ctx.revert();
-      cancelAnimationFrame(bottleRaf);
     };
   }, []);
 
@@ -343,37 +345,37 @@ const HomePage = () => {
             {/* Left stats */}
             <div className="space-y-16 text-right">
               <div>
-                <div className="stat-number">92%</div>
+                <div className="stat-number" data-target="92" data-suffix="%">92%</div>
                 <h4 className="text-xl font-bold mt-3 tracking-tight">Denser Hair</h4>
                 <p className="text-gray-400 mt-2 text-sm leading-relaxed max-w-xs ml-auto">Significant visible improvement in hair density reported.</p>
               </div>
               <div>
-                <div className="stat-number">88%</div>
+                <div className="stat-number" data-target="88" data-suffix="%">88%</div>
                 <h4 className="text-xl font-bold mt-3 tracking-tight">Scalp Health</h4>
                 <p className="text-gray-400 mt-2 text-sm leading-relaxed max-w-xs ml-auto">Reduction in dryness and irritation within the first month.</p>
               </div>
             </div>
 
-            {/* Center — Product bottle with parallax */}
-            <div className="flex justify-center items-center h-[560px] overflow-visible">
+            {/* Center — Bottle with GSAP ScrollTrigger parallax */}
+            <div className="flex justify-center items-center h-[680px] overflow-visible relative">
               <img
                 ref={bottleRef}
                 src="/assets/etlawm-hair-oil-without-bg.png"
                 alt="Etlawm Herbal Oil"
-                className="max-h-full object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-700 relative z-10"
-                style={{ filter: 'drop-shadow(0 24px 48px rgba(0,0,0,0.15))' }}
+                className="w-[88%] max-w-[420px] object-contain relative z-10"
+                style={{ filter: 'drop-shadow(0 32px 64px rgba(0,0,0,0.18))' }}
               />
             </div>
 
             {/* Right stats */}
             <div className="space-y-16">
               <div>
-                <div className="stat-number">100%</div>
+                <div className="stat-number" data-target="100" data-suffix="%">100%</div>
                 <h4 className="text-xl font-bold mt-3 tracking-tight">Natural</h4>
                 <p className="text-gray-400 mt-2 text-sm leading-relaxed max-w-xs">No synthetic fragrances, mineral oils, or harmful chemicals.</p>
               </div>
               <div>
-                <div className="stat-number">45k+</div>
+                <div className="stat-number" data-target="45" data-suffix="k+">45k+</div>
                 <h4 className="text-xl font-bold mt-3 tracking-tight">Happy Users</h4>
                 <p className="text-gray-400 mt-2 text-sm leading-relaxed max-w-xs">Trusted by hair enthusiasts across India and beyond.</p>
               </div>
