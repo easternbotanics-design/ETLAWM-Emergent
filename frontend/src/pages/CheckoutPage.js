@@ -10,6 +10,13 @@ import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const token = localStorage.getItem('etlawm_session_token');
+  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  return config;
+};
+
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
     const script = document.createElement('script');
@@ -107,7 +114,7 @@ const CheckoutPage = () => {
         items: orderItems,
         total_amount: total,
         shipping_address: shippingData
-      }, { withCredentials: true });
+      }, getAuthConfig());
       const { order, razorpay_order } = orderResponse.data;
       const options = {
         key: process.env.REACT_APP_RAZORPAY_KEY_ID || '',
@@ -121,7 +128,7 @@ const CheckoutPage = () => {
             await axios.post(`${API_URL}/api/orders/${order.order_id}/verify`, {
               payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
-            }, { withCredentials: true });
+            }, getAuthConfig());
             toast.success('Payment successful!');
             await fetchCart();
             navigate(`/orders/${order.order_id}`);
@@ -210,7 +217,7 @@ const CheckoutPage = () => {
                       <span className="text-neutral-600">
                         {product.name} {variant ? `(${variant.name})` : ''} x {item.quantity}
                       </span>
-                      <span>Rs.{(price * item.quantity).toFixed(2)}</span>
+                      <span>₹{(price * item.quantity).toFixed(2)}</span>
                     </div>
                   );
                 })}
@@ -218,7 +225,7 @@ const CheckoutPage = () => {
               <div className="border-t border-neutral-200 pt-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Subtotal</span>
-                  <span data-testid="checkout-subtotal">Rs.{total.toFixed(2)}</span>
+                  <span data-testid="checkout-subtotal">₹{total.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-600">Shipping</span>
@@ -226,7 +233,7 @@ const CheckoutPage = () => {
                 </div>
                 <div className="border-t border-neutral-200 pt-4 flex justify-between text-xl font-medium">
                   <span>Total</span>
-                  <span data-testid="checkout-total">Rs.{total.toFixed(2)}</span>
+                  <span data-testid="checkout-total">₹{total.toFixed(2)}</span>
                 </div>
               </div>
             </div>

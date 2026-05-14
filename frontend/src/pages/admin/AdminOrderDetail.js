@@ -13,6 +13,13 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const token = localStorage.getItem('etlawm_session_token');
+  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  return config;
+};
+
 const AdminOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -26,9 +33,7 @@ const AdminOrderDetail = () => {
 
   const fetchOrder = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/admin/orders/${orderId}`, {
-        withCredentials: true
-      });
+      const response = await axios.get(`${API_URL}/api/admin/orders/${orderId}`, getAuthConfig());
       setOrder(response.data);
     } catch (error) {
       console.error('Failed to fetch order:', error);
@@ -46,10 +51,7 @@ const AdminOrderDetail = () => {
       await axios.put(
         `${API_URL}/api/admin/orders/${orderId}/status`,
         null,
-        {
-          params: { status: newStatus },
-          withCredentials: true
-        }
+        getAuthConfig({ params: { status: newStatus } })
       );
       toast.success('Order status updated');
       fetchOrder();

@@ -8,6 +8,13 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const token = localStorage.getItem('etlawm_session_token');
+  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  return config;
+};
+
 const AdminProducts = () => {
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,9 +40,7 @@ const AdminProducts = () => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      await axios.delete(`${API_URL}/api/products/${productId}`, {
-        withCredentials: true
-      });
+      await axios.delete(`${API_URL}/api/products/${productId}`, getAuthConfig());
       toast.success('Product deleted successfully');
       fetchProducts();
     } catch (error) {

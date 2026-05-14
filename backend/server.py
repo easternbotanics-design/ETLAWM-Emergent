@@ -1,8 +1,8 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status, File, UploadFile, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, status, File, UploadFile
 from fastapi.responses import JSONResponse
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -10,14 +10,13 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
 import razorpay
 import cloudinary
 import cloudinary.uploader
-import hashlib
 from enum import Enum
 from email_service import (
     send_order_confirmation_email, 
@@ -456,44 +455,39 @@ async def login(login_data: UserLogin, response: Response):
         max_age=7 * 24 * 60 * 60
     )
     
-    # Return user (session_token is set via HTTPOnly cookie — not returned in body)
+    # Return user + session_token (cookie is also set for browser clients)
     user.pop("password")
     user["created_at"] = datetime.fromisoformat(user["created_at"])
-    return {"user": User(**user)}
+    return {"user": User(**user), "session_token": session_token}
 
 class GoogleTokenData(BaseModel):
     access_token: str
 
 @api_router.post("/auth/google/session")
 async def google_auth_session(token_data: GoogleTokenData, response: Response):
-    print(f"=== GOOGLE AUTH SESSION STARTED ===")
-    
+    logger.info("Google auth session started")
+
     if not token_data.access_token:
-        print("❌ No access token provided")
         raise HTTPException(status_code=400, detail="Access token required")
-    
-    # Call Google Auth API using async httpx
+
     import httpx
-    print(f"🔄 Calling Google UserInfo API...")
     async with httpx.AsyncClient() as http_client:
         auth_response = await http_client.get(
             "https://www.googleapis.com/oauth2/v3/userinfo",
             headers={"Authorization": f"Bearer {token_data.access_token}"}
         )
-    
+
     if auth_response.status_code != 200:
-        print(f"❌ Invalid token from Google: {auth_response.text}")
+        logger.warning(f"Invalid Google token: {auth_response.text}")
         raise HTTPException(status_code=401, detail="Invalid Google token")
-    
+
     data = auth_response.json()
-    print(f"✅ Got user data from Google: {data.get('email')}")
-    
-    # Check if user exists
+    logger.info(f"Google auth: received user data for {data.get('email')}")
+
     user = await db.users.find_one({"email": data["email"]}, {"_id": 0})
-    
+
     if not user:
-        # Create new user
-        print(f"📝 Creating new user for {data['email']}")
+        logger.info(f"Google auth: creating new user for {data['email']}")
         user_id = f"user_{uuid.uuid4().hex[:12]}"
         user = {
             "user_id": user_id,
@@ -503,27 +497,21 @@ async def google_auth_session(token_data: GoogleTokenData, response: Response):
             "role": UserRole.USER,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
-        # A dummy password hash so DB structure is satisfied if needed
-        import bcrypt
         user["password"] = bcrypt.hashpw(os.urandom(32), bcrypt.gensalt(4)).decode()
         await db.users.insert_one(user)
     else:
-        print(f"✅ Found existing user: {user['user_id']}")
-    
-    # Store session
+        logger.info(f"Google auth: found existing user {user['user_id']}")
+
     session_token = f"session_{uuid.uuid4().hex}"
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-    
-    print(f"💾 Storing session token...")
+
     await db.user_sessions.insert_one({
         "user_id": user["user_id"],
         "session_token": session_token,
         "expires_at": expires_at.isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    
-    # Set cookie
-    print(f"🍪 Setting cookie with session token")
+
     response.set_cookie(
         key="session_token",
         value=session_token,
@@ -533,19 +521,18 @@ async def google_auth_session(token_data: GoogleTokenData, response: Response):
         path="/",
         max_age=7 * 24 * 60 * 60
     )
-    
+
     user.pop("password", None)
-    
-    # Ensure created_at is datetime object if the BaseModel validation is expected later
+
     if isinstance(user.get("created_at"), str):
         try:
             user["created_at"] = datetime.fromisoformat(user["created_at"])
         except ValueError:
             user["created_at"] = datetime.now(timezone.utc)
-            
-    print(f"✅ GOOGLE AUTH SESSION COMPLETED")
-    # session_token is set via HTTPOnly cookie — not returned in body
-    return {"user": User(**user)}
+
+    logger.info("Google auth session completed")
+    # Return session_token so frontend can store it (cookie also set for browser clients)
+    return {"user": User(**user), "session_token": session_token}
 
 @api_router.get("/auth/me", response_model=User)
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -1001,10 +988,10 @@ async def update_order_status(order_id: str, status: OrderStatus, admin: User = 
             send_order_status_update_email(
                 to_email=user["email"],
                 order_data={"order_id": order["order_id"]},
-                new_status=status
+                new_status=status.value
             )
         except Exception as e:
-            print(f"Failed to send status update email: {str(e)}")
+            logger.warning(f"Failed to send status update email: {str(e)}")
     
     return {"message": "Order status updated"}
 

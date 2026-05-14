@@ -7,6 +7,13 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const token = localStorage.getItem('etlawm_session_token');
+  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  return config;
+};
+
 const AdminCustomers = () => {
   const [customers, setCustomers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,9 +25,7 @@ const AdminCustomers = () => {
 
   const fetchCustomers = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/admin/customers`, {
-        withCredentials: true
-      });
+      const response = await axios.get(`${API_URL}/api/admin/customers`, getAuthConfig());
       setCustomers(response.data);
     } catch (error) {
       console.error('Failed to fetch customers:', error);

@@ -360,7 +360,7 @@ const HomePage = () => {
             <div className="flex justify-center items-center h-[780px] overflow-visible relative">
               <img
                 ref={bottleRef}
-                src="/assets/etlawm-hair-oil-without-bg.png"
+                src="/assets/etlawm-hair-oil.png"
                 alt="Etlawm Herbal Oil"
                 className="w-full max-w-[630px] object-contain relative z-10"
                 style={{ filter: 'drop-shadow(0 32px 64px rgba(0,0,0,0.18))' }}

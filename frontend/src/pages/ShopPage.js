@@ -14,6 +14,13 @@ import {
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const token = localStorage.getItem('etlawm_session_token');
+  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  return config;
+};
+
 const ShopPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -67,7 +74,7 @@ const ShopPage = () => {
       await axios.post(
         `${API_URL}/api/wishlist/${productId}`,
         {},
-        { withCredentials: true }
+        getAuthConfig()
       );
       toast.success('Added to wishlist');
     } catch (error) {

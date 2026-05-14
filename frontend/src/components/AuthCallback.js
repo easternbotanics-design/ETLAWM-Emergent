@@ -19,31 +19,22 @@ const AuthCallback = () => {
 
     const processSession = async () => {
       try {
-        console.log('=== AUTH CALLBACK STARTED ===');
-        console.log('Full URL:', window.location.href);
-        console.log('Hash:', location.hash);
-        console.log('Search:', location.search);
-        
         // Extract session_id from URL hash
         const hash = location.hash;
         let sessionId = null;
-        
+
         if (hash) {
           const sessionIdMatch = hash.match(/session_id=([^&]+)/);
           if (sessionIdMatch) {
             sessionId = sessionIdMatch[1];
-            console.log('Found session_id in hash:', sessionId);
           }
         }
 
         if (!sessionId) {
-          console.error('❌ No session_id found in URL');
           setError('No session ID found. Please try logging in again.');
           setTimeout(() => navigate('/login'), 2000);
           return;
         }
-
-        console.log('🔄 Exchanging session_id for user session...');
 
         // Exchange session_id for session_token
         const response = await axios.post(
@@ -55,30 +46,20 @@ const AuthCallback = () => {
           }
         );
 
-        console.log('✅ Google auth successful!');
-        console.log('User:', response.data.user);
-        console.log('Session token received and cookie set');
-
         // Set user in context
         setUser(response.data.user);
 
         // Store in localStorage for persistence
         localStorage.setItem('etlawm_user', JSON.stringify(response.data.user));
-
-        console.log('✅ User stored in context and localStorage');
+        if (response.data.session_token) {
+          localStorage.setItem('etlawm_session_token', response.data.session_token);
+        }
 
         // Give React time to update state
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        console.log('✅ Redirecting to shop page...');
-        
-        // Navigate to shop
         navigate('/shop', { replace: true });
       } catch (error) {
-        console.error('❌ Auth callback error:', error);
-        console.error('Error response:', error.response?.data);
-        console.error('Error status:', error.response?.status);
-        
         setError(error.response?.data?.detail || 'Authentication failed. Please try again.');
         
         setTimeout(() => navigate('/login'), 3000);

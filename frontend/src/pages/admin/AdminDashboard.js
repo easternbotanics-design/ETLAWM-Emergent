@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const token = localStorage.getItem('etlawm_session_token');
+  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  return config;
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
@@ -18,9 +25,7 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/admin/stats`, {
-        withCredentials: true
-      });
+      const response = await axios.get(`${API_URL}/api/admin/stats`, getAuthConfig());
       setStats(response.data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);

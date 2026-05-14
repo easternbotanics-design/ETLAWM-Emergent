@@ -7,6 +7,13 @@ import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const getAuthConfig = (extra = {}) => {
+  const config = { withCredentials: true, ...extra };
+  const token = localStorage.getItem('etlawm_session_token');
+  if (token) config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+  return config;
+};
+
 const WishlistPage = () => {
   const [wishlist, setWishlist] = useState({ product_ids: [] });
   const [products, setProducts] = useState([]);
@@ -18,9 +25,7 @@ const WishlistPage = () => {
 
   const fetchWishlist = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/wishlist`, {
-        withCredentials: true
-      });
+      const response = await axios.get(`${API_URL}/api/wishlist`, getAuthConfig());
       setWishlist(response.data);
 
       if (response.data.product_ids.length > 0) {
@@ -39,9 +44,7 @@ const WishlistPage = () => {
 
   const handleRemove = async (productId) => {
     try {
-      await axios.delete(`${API_URL}/api/wishlist/${productId}`, {
-        withCredentials: true
-      });
+      await axios.delete(`${API_URL}/api/wishlist/${productId}`, getAuthConfig());
       setProducts(products.filter(p => p.product_id !== productId));
       toast.success('Removed from wishlist');
     } catch (error) {
