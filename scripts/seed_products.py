@@ -133,6 +133,19 @@ async def seed_products():
         },
         {
             "product_id": f"prod_{uuid.uuid4().hex[:12]}",
+            "name": "ETLAWM 15% Vitamin C Face Serum",
+            "description": "ETLAWM High-Strength Face Serum with 15% Vitamin C complex is formulated to enhance skin brightness, clarity, and overall radiance. Enriched with niacinamide and hydrating actives, it supports smooth, luminous-looking skin with a lightweight, silky gel texture. Brightening • Antioxidant • Even Tone. Suitable for all skin types.\n\nIngredients: Aqua (Deionized Water), Glycerin, Propylene Glycol, Aristo flex AVC, 3-O-Ethyl Ascorbic Acid (Vitamin C), Niacinamide, Sodium Hyaluronate, Ferulic Acid, Tocopherol (Vitamin E), Allantoin, Triethanolamine, Disodium EDTA, DMDM Hydantoin.\n\nHow to use: Apply 2-3 drops to clean, dry face. Gently massage over face and neck until fully absorbed. Use twice daily for best results.\n\nStorage: Store in a cool, dry place away from direct sunlight. Caution: High-strength Vitamin C may cause slight tingling, especially on sensitive skin. If the problem persists for a longer time, discontinue use.",
+            "category": "Skincare",
+            "base_price": 1299.00,
+            "variants": [
+                {"variant_id": f"var_{uuid.uuid4().hex[:8]}", "name": "30ml", "price": 1299.00, "stock": 50, "sku": "ETLAWM-VCS-30"}
+            ],
+            "images": [],
+            "featured": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        },
+        {
+            "product_id": f"prod_{uuid.uuid4().hex[:12]}",
             "name": "Nourishing Hair Oil",
             "description": "Lightweight hair oil infused with argan and jojoba oils. Adds shine and tames frizz without greasiness.",
             "category": "Haircare",
